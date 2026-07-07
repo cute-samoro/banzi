@@ -35,7 +35,7 @@
 
 #outline(depth: 2)
 #pagebreak()
-#set page(columns: 1)
+#set page(columns: 2)
 
 = #text("NTT")
 ```cpp
