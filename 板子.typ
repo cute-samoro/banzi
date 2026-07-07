@@ -82,8 +82,20 @@ vector<int>multiply(vector<int>a, vector<int>b) {
     }*/
     return a;}
 ```
+= #text("计算几何")
 
-= #text("凸包（andrew算法）")
+== #text("距离的转换")
+
+$abs(x_1-x_2)+abs(y_1-y_2) = max(abs((x_1+y_1)-(x_2+y_2)),abs((x_1-y_1)-(x_2-y_2)))$
+
+== #text("pick定理")
+
+```text
+    给定顶点均为整点的简单多边形，皮克定理说明了其面积 𝐴和内部格点数目 𝑖、边上格点数目 𝑏的关系
+```
+$A=i+b/2-1$
+
+== #text("凸包（andrew算法）")
 
 ```cpp
 struct Point {
@@ -117,7 +129,663 @@ vector<Point>getConvexHull(vector<Point>&p) {
 }
 ```
 
-= #text("Exgcd")
+=== #text("闵可夫斯基和")
+```cpp
+template <class T>
+struct Point {
+  T x, y;
+
+  Point(T x = 0, T y = 0) : x(x), y(y) {}
+
+  friend Point operator+(const Point &a, const Point &b) {
+    return {a.x + b.x, a.y + b.y};
+  }
+
+  friend Point operator-(const Point &a, const Point &b) {
+    return {a.x - b.x, a.y - b.y};
+  }
+
+  // 点乘
+  friend T operator*(const Point &a, const Point &b) {
+    return a.x * b.x + a.y * b.y;
+  }
+
+  // 叉乘
+  friend T operator^(const Point &a, const Point &b) {
+    return a.x * b.y - a.y * b.x;
+  }
+};
+
+template <class T>
+vector<Point<T>> minkowski_sum(vector<Point<T>> a, vector<Point<T>> b) {
+  vector<Point<T>> c{a[0] + b[0]};
+  for (usz i = 0; i + 1 < a.size(); ++i) a[i] = a[i + 1] - a[i];
+  for (usz i = 0; i + 1 < b.size(); ++i) b[i] = b[i + 1] - b[i];
+  a.pop_back(), b.pop_back();
+  c.resize(a.size() + b.size() + 1);
+  merge(a.begin(), a.end(), b.begin(), b.end(), c.begin() + 1,
+        [](const Point<T> &a, const Point<T> &b) { return (a ^ b) > 0; });
+  for (usz i = 1; i < c.size(); ++i) c[i] = c[i] + c[i - 1];
+  return c;
+}
+```
+
+== #text("扫描线")
+
+== #text("旋转卡壳")
+
+```cpp
+int sta[N], top;  // 将凸包上的节点编号存在栈里，第一个和最后一个节点编号相同
+
+ll pf(ll x) { return x * x; }
+
+ll dis(int p, int q) { return pf(a[p].x - a[q].x) + pf(a[p].y - a[q].y); }
+
+ll sqr(int p, int q, int y) { return abs((a[q] - a[p]) * (a[y] - a[q])); }
+
+ll mx;
+
+void get_longest() {  // 求凸包直径
+  int j = 3;
+  if (top < 4) {
+    mx = dis(sta[1], sta[2]);
+    return;
+  }
+  for (int i = 1; i < top; ++i) {
+    while (sqr(sta[i], sta[i + 1], sta[j]) <=
+           sqr(sta[i], sta[i + 1], sta[j % top + 1]))
+      j = j % top + 1;
+    mx = max(mx, max(dis(sta[i + 1], sta[j]), dis(sta[i], sta[j])));
+  }
+}
+```
+
+== #text("半平面交")
+
+```cpp
+friend bool operator<(seg x, seg y) {
+  db t1 = atan2((x.b - x.a).y, (x.b - x.a).x);
+  db t2 = atan2((y.b - y.a).y, (y.b - y.a).x);  // 求极角
+  if (fabs(t1 - t2) > eps)                      // 如果极角不等
+    return t1 < t2;
+  return (y.a - x.a) * (y.b - x.a) >
+         eps;  // 判断向量x在y的哪边，令最靠左的排在最左边
+}
+// pnt its(seg a,seg b)表示求线段a,b的交点
+// s[]是极角排序后的向量
+// q[]是向量队列
+// t[i]是s[i-1]与s[i]的交点
+// 【码风】队列的范围是(l,r]
+// 求的是向量左侧的半平面
+int l = 0, r = 0;
+for (int i = 1; i <= n; ++i)
+  if (s[i] != s[i - 1]) {
+    // 注意要先检查队尾
+    while (r - l > 1 && (s[i].b - t[r]) * (s[i].a - t[r]) >
+                            eps)  // 如果上一个交点在向量右侧则弹出队尾
+      --r;
+    while (r - l > 1 && (s[i].b - t[l + 2]) * (s[i].a - t[l + 2]) >
+                            eps)  // 如果第一个交点在向量右侧则弹出队首
+      ++l;
+    q[++r] = s[i];
+    if (r - l > 1) t[r] = its(q[r], q[r - 1]);  // 求新交点
+  }
+while (r - l > 1 &&
+       (q[l + 1].b - t[r]) * (q[l + 1].a - t[r]) > eps)  // 注意删除多余元素
+  --r;
+t[r + 1] = its(q[l + 1], q[r]);  // 再求出新的交点
+++r;
+// 这里不能在t里面++r需要注意一下……
+```
+
+== #text("随机增量法")
+
+```cpp
+/*
+    最小圆覆盖问题:在一个平面上有 n 个点，求一个半径最小的圆，能覆盖所有的点．
+    下面这个做法用随机化打乱后期望o(n),证明较为复杂，下面给了两种写法(其实一样),第二种是我自己写的,感觉代码会更清晰点
+*/
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+
+using namespace std;
+
+int n;
+double r;
+
+struct point {
+  double x, y;
+} p[100005], o;
+
+double sqr(double x) { return x * x; }
+
+double dis(point a, point b) { return sqrt(sqr(a.x - b.x) + sqr(a.y - b.y)); }
+
+bool cmp(double a, double b) { return fabs(a - b) < 1e-8; }
+
+point geto(point a, point b, point c) {
+  double a1, a2, b1, b2, c1, c2;
+  point ans;
+  a1 = 2 * (b.x - a.x), b1 = 2 * (b.y - a.y),
+  c1 = sqr(b.x) - sqr(a.x) + sqr(b.y) - sqr(a.y);
+  a2 = 2 * (c.x - a.x), b2 = 2 * (c.y - a.y),
+  c2 = sqr(c.x) - sqr(a.x) + sqr(c.y) - sqr(a.y);
+  if (cmp(a1, 0)) {
+    ans.y = c1 / b1;
+    ans.x = (c2 - ans.y * b2) / a2;
+  } else if (cmp(b1, 0)) {
+    ans.x = c1 / a1;
+    ans.y = (c2 - ans.x * a2) / b2;
+  } else {
+    ans.x = (c2 * b1 - c1 * b2) / (a2 * b1 - a1 * b2);
+    ans.y = (c2 * a1 - c1 * a2) / (b2 * a1 - b1 * a2);
+  }
+  return ans;
+}
+
+int main() {
+  scanf("%d", &n);
+  for (int i = 1; i <= n; i++) scanf("%lf%lf", &p[i].x, &p[i].y);
+  for (int i = 1; i <= n; i++) swap(p[rand() % n + 1], p[rand() % n + 1]);
+  o = p[1];
+  for (int i = 1; i <= n; i++) {
+    if (dis(o, p[i]) < r || cmp(dis(o, p[i]), r)) continue;
+    o.x = (p[i].x + p[1].x) / 2;
+    o.y = (p[i].y + p[1].y) / 2;
+    r = dis(p[i], p[1]) / 2;
+    for (int j = 2; j < i; j++) {
+      if (dis(o, p[j]) < r || cmp(dis(o, p[j]), r)) continue;
+      o.x = (p[i].x + p[j].x) / 2;
+      o.y = (p[i].y + p[j].y) / 2;
+      r = dis(p[i], p[j]) / 2;
+      for (int k = 1; k < j; k++) {
+        if (dis(o, p[k]) < r || cmp(dis(o, p[k]), r)) continue;
+        o = geto(p[i], p[j], p[k]);
+        r = dis(o, p[i]);
+      }
+    }
+  }
+  printf("%.10lf\n%.10lf %.10lf", r, o.x, o.y);
+  return 0;
+}
+```
+
+```cpp
+/*
+    自己写的最小圆覆盖代码，有点丑
+*/
+#include<bits/stdc++.h>
+using namespace std;
+const double eps = 1e-9;
+mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+void solve() {
+    int n;
+    cin >> n;
+    vector<pair<double,double>> a(n);
+    for (auto &[x, y] : a) {
+        cin >> x >> y;
+    }
+    shuffle(a.begin(), a.end(), rng);
+    pair<double,double> c = a[0];
+    double r = 0;
+    auto dis = [&](pair<double,double> &a) ->double {
+        auto &[x, y] = a;
+        auto &[x1, y1] = c;
+        return sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1)); 
+    };
+    auto get_v = [&](vector<array<double,2>> &x) ->double {
+        auto [a1, b1] = x[0];
+        auto [a2, b2] = x[1];
+        return a1 * b2 - a2 * b1;
+    };
+    auto get_c = [&](int i, int j, int k) ->pair<double,double>{
+        auto &[xi, yi] = a[i];
+        auto &[xj, yj] = a[j];
+        auto &[xk, yk] = a[k];
+        vector<array<double,2>> mk(2), mk_x(2), mk_y(2);
+        mk[0] = {-2 * xi + 2 * xj, -2 * yi + 2 * yj};
+        mk[1] = {-2 * xi + 2 * xk, -2 * yi + 2 * yk};
+        double base = get_v(mk);
+        mk_x[0] = {xj * xj - xi * xi + yj * yj - yi * yi, -2 * yi + 2 * yj};
+        mk_x[1] = {xk * xk - xi * xi + yk * yk - yi * yi, -2 * yi + 2 * yk};
+        double x = get_v(mk_x) / base;
+        mk_y[0] = {-2 * xi + 2 * xj, xj * xj - xi * xi + yj * yj - yi * yi};
+        mk_y[1] = {-2 * xi + 2 * xk, xk * xk - xi * xi + yk * yk - yi * yi};
+        double y = get_v(mk_y) / base;
+        return {x, y};
+    };
+    for (int i = 1; i < n; i++) {
+        if (dis(a[i]) > r + eps) {
+            c = a[i];
+            r = 0;
+            for (int j = 0; j < i; j++) {
+                if (dis(a[j]) > r + eps) {
+                    auto [x, y] = a[i];
+                    auto [x1, y1] = a[j];
+                    c = pair{(x + x1) / 2, (y + y1) / 2};
+                    r = dis(a[j]);
+                    for (int k = 0; k < j; k++) {
+                        if (dis(a[k]) > r + eps) {
+                            auto [x1, y1] = pair{a[k].first - a[i].first, a[k].second - a[i].second};
+                            auto [x2, y2] = pair{a[j].first - a[i].first, a[j].second - a[i].second};
+                            if (fabs(x1 * y2 - x2 * y1) <eps) continue;
+                            c = get_c(i, j, k);
+                            r = dis(a[k]);
+                        }
+                    } 
+                }
+            }
+        }
+    }
+    cout << fixed << setprecision(9) << r << '\n' << c.first << ' ' << c.second << '\n';
+    return ;
+}
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    solve();
+    return 0;
+}
+```
+
+== #text("反演变换")
+定义: \
+给定反演中心点 𝑂和反演半径 𝑅,若平面上点 和 𝑃′ 满足：\ (1)点 𝑃′ 在射线 OP上 \ (2)|𝑂𝑃| ⋅|𝑂𝑃′| = $R^2$ \ 则称点 𝑃和点 𝑃′互为反演点．
+
+性质: \
+(1)除反演中心外，平面上的每一个点都只有唯一的反演点，且这种关系是对称的，位于反演圆上的点，保持在原处，位于反演圆外部的点，变为圆内部的点，位于反演圆内部的点，变为圆外部的点。 \
+(2)任意一条不过反演中心的直线，它的反形是经过反演中心的圆，反之亦然，特别地，过反演中心相交的圆，变为不过反演中心的相交直线 \
+(3)反演不改变相切、平行、相交的关系 \
+记圆 𝐴半径为 𝑟1,其反演图形圆 𝐵半径为 𝑟2,则有:$ r_2 = 1/2 (1/(|O A| - r_1) - 1/(|O A| + r_1)) R^2 $ \
+记点 $O$ 坐标为 $(x_0, y_0)$，点 $A$ 坐标为 $(x_1, y_1)$，点 $B$ 坐标为 $(x_2, y_2)$，则有：
+
+$
+x_2 = x_0 + (|O B|) / (|O A|) (x_1 - x_0) \
+y_2 = y_0 + (|O B|) / (|O A|) (y_1 - y_0)
+$
+
+```cpp
+/*
+题目:求过两圆外一点，且与两圆相切的所有的圆．
+*/
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+constexpr double EPS = 1e-8;   // 精度系数
+const double PI = acos(-1.0);  // π
+constexpr int N = 4;
+
+// 点的定义
+struct Point {
+  double x, y;
+
+  Point(double x = 0, double y = 0) : x(x), y(y) {}
+
+  bool operator<(Point A) const { return x == A.x ? y < A.y : x < A.x; }
+};
+
+// 向量的定义
+using Vector = Point;
+
+// 向量加法
+Vector operator+(Vector A, Vector B) { return Vector(A.x + B.x, A.y + B.y); }
+
+// 向量减法
+Vector operator-(Vector A, Vector B) { return Vector(A.x - B.x, A.y - B.y); }
+
+// 向量数乘
+Vector operator*(Vector A, double p) { return Vector(A.x * p, A.y * p); }
+
+// 向量数除
+Vector operator/(Vector A, double p) { return Vector(A.x / p, A.y / p); }
+
+// 与0的关系
+int dcmp(double x) {
+  if (fabs(x) < EPS) return 0;
+  return x < 0 ? -1 : 1;
+}
+
+// 向量点乘
+double Dot(Vector A, Vector B) { return A.x * B.x + A.y * B.y; }
+
+// 向量长度
+double Length(Vector A) { return sqrt(Dot(A, A)); }
+
+// 向量叉乘
+double Cross(Vector A, Vector B) { return A.x * B.y - A.y * B.x; }
+
+// 点在直线上投影
+Point GetLineProjection(Point P, Point A, Point B) {
+  Vector v = B - A;
+  return A + v * (Dot(v, P - A) / Dot(v, v));
+}
+
+// 圆
+struct Circle {
+  Point c;
+  double r;
+
+  Circle() : c(Point(0, 0)), r(0) {}
+
+  Circle(Point c, double r = 0) : c(c), r(r) {}
+
+  // 输入极角返回点坐标
+  Point point(double a) { return Point(c.x + cos(a) * r, c.y + sin(a) * r); }
+};
+
+// 两圆公切线 返回切线的条数，-1表示无穷多条切线
+// a[i] 和 b[i] 分别是第i条切线在圆A和圆B上的切点
+int getTangents(Circle A, Circle B, Point* a, Point* b) {
+  int cnt = 0;
+  if (A.r < B.r) {
+    swap(A, B);
+    swap(a, b);
+  }
+  double d2 =
+      (A.c.x - B.c.x) * (A.c.x - B.c.x) + (A.c.y - B.c.y) * (A.c.y - B.c.y);
+  double rdiff = A.r - B.r;
+  double rsum = A.r + B.r;
+  if (dcmp(d2 - rdiff * rdiff) < 0) return 0;  // 内含
+
+  double base = atan2(B.c.y - A.c.y, B.c.x - A.c.x);
+  if (dcmp(d2) == 0 && dcmp(A.r - B.r) == 0) return -1;  // 无限多条切线
+  if (dcmp(d2 - rdiff * rdiff) == 0) {  // 内切，一条切线
+    a[cnt] = A.point(base);
+    b[cnt] = B.point(base);
+    ++cnt;
+    return 1;
+  }
+  // 有外公切线
+  double ang = acos(rdiff / sqrt(d2));
+  a[cnt] = A.point(base + ang);
+  b[cnt] = B.point(base + ang);
+  ++cnt;
+  a[cnt] = A.point(base - ang);
+  b[cnt] = B.point(base - ang);
+  ++cnt;
+  if (dcmp(d2 - rsum * rsum) == 0) {  // 一条内公切线
+    a[cnt] = A.point(base);
+    b[cnt] = B.point(PI + base);
+    ++cnt;
+  } else if (dcmp(d2 - rsum * rsum) > 0) {  // 两条内公切线
+    double ang = acos(rsum / sqrt(d2));
+    a[cnt] = A.point(base + ang);
+    b[cnt] = B.point(PI + base + ang);
+    ++cnt;
+    a[cnt] = A.point(base - ang);
+    b[cnt] = B.point(PI + base - ang);
+    ++cnt;
+  }
+  return cnt;
+}
+
+// 点 O 在圆 A 外，求圆 A 的反演圆 B，R 是反演半径
+Circle Inversion_C2C(Point O, double R, Circle A) {
+  double OA = Length(A.c - O);
+  double RB = 0.5 * ((1 / (OA - A.r)) - (1 / (OA + A.r))) * R * R;
+  double OB = OA * RB / A.r;
+  double Bx = O.x + (A.c.x - O.x) * OB / OA;
+  double By = O.y + (A.c.y - O.y) * OB / OA;
+  return Circle(Point(Bx, By), RB);
+}
+
+// 直线反演为过 O 点的圆 B，R 是反演半径
+Circle Inversion_L2C(Point O, double R, Point A, Vector v) {
+  Point P = GetLineProjection(O, A, A + v);
+  double d = Length(O - P);
+  double RB = R * R / (2 * d);
+  Vector VB = (P - O) / d * RB;
+  return Circle(O + VB, RB);
+}
+
+// 返回 true 如果 A B 两点在直线同侧
+bool theSameSideOfLine(Point A, Point B, Point S, Vector v) {
+  return dcmp(Cross(A - S, v)) * dcmp(Cross(B - S, v)) > 0;
+}
+
+int main() {
+  int T;
+  scanf("%d", &T);
+  while (T--) {
+    Circle A, B;
+    Point P;
+    scanf("%lf%lf%lf", &A.c.x, &A.c.y, &A.r);
+    scanf("%lf%lf%lf", &B.c.x, &B.c.y, &B.r);
+    scanf("%lf%lf", &P.x, &P.y);
+    Circle NA = Inversion_C2C(P, 10, A);
+    Circle NB = Inversion_C2C(P, 10, B);
+    Point LA[N], LB[N];
+    Circle ansC[N];
+    int q = getTangents(NA, NB, LA, LB), ans = 0;
+    for (int i = 0; i < q; ++i)
+      if (theSameSideOfLine(NA.c, NB.c, LA[i], LB[i] - LA[i])) {
+        if (!theSameSideOfLine(P, NA.c, LA[i], LB[i] - LA[i])) continue;
+        ansC[ans++] = Inversion_L2C(P, 10, LA[i], LB[i] - LA[i]);
+      }
+    printf("%d\n", ans);
+    for (int i = 0; i < ans; ++i) {
+      printf("%.8f %.8f %.8f\n", ansC[i].c.x, ansC[i].c.y, ansC[i].r);
+    }
+  }
+
+  return 0;
+}
+```
+
+== #text("Delaunay三角剖分")
+
+```cpp
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <list>
+#include <utility>
+#include <vector>
+
+constexpr double EPS = 1e-8;
+constexpr int MAXV = 10000;
+
+struct Point {
+  double x, y;
+  int id;
+
+  Point(double a = 0, double b = 0, int c = -1) : x(a), y(b), id(c) {}
+
+  bool operator<(const Point &a) const {
+    return x < a.x || (fabs(x - a.x) < EPS && y < a.y);
+  }
+
+  bool operator==(const Point &a) const {
+    return fabs(x - a.x) < EPS && fabs(y - a.y) < EPS;
+  }
+
+  double dist2(const Point &b) {
+    return (x - b.x) * (x - b.x) + (y - b.y) * (y - b.y);
+  }
+};
+
+struct Point3D {
+  double x, y, z;
+
+  Point3D(double a = 0, double b = 0, double c = 0) : x(a), y(b), z(c) {}
+
+  Point3D(const Point &p) { x = p.x, y = p.y, z = p.x * p.x + p.y * p.y; }
+
+  Point3D operator-(const Point3D &a) const {
+    return Point3D(x - a.x, y - a.y, z - a.z);
+  }
+
+  double dot(const Point3D &a) { return x * a.x + y * a.y + z * a.z; }
+};
+
+struct Edge {
+  int id;
+  std::list<Edge>::iterator c;
+
+  Edge(int id = 0) { this->id = id; }
+};
+
+int cmp(double v) { return fabs(v) > EPS ? (v > 0 ? 1 : -1) : 0; }
+
+double cross(const Point &o, const Point &a, const Point &b) {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+}
+
+Point3D cross(const Point3D &a, const Point3D &b) {
+  return Point3D(a.y * b.z - a.z * b.y, -a.x * b.z + a.z * b.x,
+                 a.x * b.y - a.y * b.x);
+}
+
+int inCircle(const Point &a, Point b, Point c, const Point &p) {
+  if (cross(a, b, c) < 0) std::swap(b, c);
+  Point3D a3(a), b3(b), c3(c), p3(p);
+  b3 = b3 - a3, c3 = c3 - a3, p3 = p3 - a3;
+  Point3D f = cross(b3, c3);
+  return cmp(p3.dot(f));  // check same direction, in: < 0, on: = 0, out: > 0
+}
+
+int intersection(const Point &a, const Point &b, const Point &c,
+                 const Point &d) {  // seg(a, b) and seg(c, d)
+  return cmp(cross(a, c, b)) * cmp(cross(a, b, d)) > 0 &&
+         cmp(cross(c, a, d)) * cmp(cross(c, d, b)) > 0;
+}
+
+class Delaunay {
+ public:
+  std::list<Edge> head[MAXV];  // graph
+  Point p[MAXV];
+  int n, rename[MAXV];
+
+  void init(int n, Point p[]) {
+    memcpy(this->p, p, sizeof(Point) * n);
+    std::sort(this->p, this->p + n);
+    for (int i = 0; i < n; i++) rename[p[i].id] = i;
+    this->n = n;
+    divide(0, n - 1);
+  }
+
+  void addEdge(int u, int v) {
+    head[u].push_front(Edge(v));
+    head[v].push_front(Edge(u));
+    head[u].begin()->c = head[v].begin();
+    head[v].begin()->c = head[u].begin();
+  }
+
+  void divide(int l, int r) {
+    if (r - l <= 2) {  // #point <= 3
+      for (int i = l; i <= r; i++)
+        for (int j = i + 1; j <= r; j++) addEdge(i, j);
+      return;
+    }
+    int mid = (l + r) / 2;
+    divide(l, mid);
+    divide(mid + 1, r);
+
+    std::list<Edge>::iterator it;
+    int nowl = l, nowr = r;
+
+    for (int update = 1; update;) {
+      // find left and right convex, lower common tangent
+      update = 0;
+      Point ptL = p[nowl], ptR = p[nowr];
+      for (it = head[nowl].begin(); it != head[nowl].end(); it++) {
+        Point t = p[it->id];
+        double v = cross(ptR, ptL, t);
+        if (cmp(v) > 0 || (cmp(v) == 0 && ptR.dist2(t) < ptR.dist2(ptL))) {
+          nowl = it->id, update = 1;
+          break;
+        }
+      }
+      if (update) continue;
+      for (it = head[nowr].begin(); it != head[nowr].end(); it++) {
+        Point t = p[it->id];
+        double v = cross(ptL, ptR, t);
+        if (cmp(v) < 0 || (cmp(v) == 0 && ptL.dist2(t) < ptL.dist2(ptR))) {
+          nowr = it->id, update = 1;
+          break;
+        }
+      }
+    }
+
+    addEdge(nowl, nowr);  // add tangent
+
+    for (int update = 1; true;) {
+      update = 0;
+      Point ptL = p[nowl], ptR = p[nowr];
+      int ch = -1, side = 0;
+      for (it = head[nowl].begin(); it != head[nowl].end(); it++) {
+        if (cmp(cross(ptL, ptR, p[it->id])) > 0 &&
+            (ch == -1 || inCircle(ptL, ptR, p[ch], p[it->id]) < 0)) {
+          ch = it->id, side = -1;
+        }
+      }
+      for (it = head[nowr].begin(); it != head[nowr].end(); it++) {
+        if (cmp(cross(ptR, p[it->id], ptL)) > 0 &&
+            (ch == -1 || inCircle(ptL, ptR, p[ch], p[it->id]) < 0)) {
+          ch = it->id, side = 1;
+        }
+      }
+      if (ch == -1) break;  // upper common tangent
+      if (side == -1) {
+        for (it = head[nowl].begin(); it != head[nowl].end();) {
+          if (intersection(ptL, p[it->id], ptR, p[ch])) {
+            head[it->id].erase(it->c);
+            head[nowl].erase(it++);
+          } else {
+            it++;
+          }
+        }
+        nowl = ch;
+        addEdge(nowl, nowr);
+      } else {
+        for (it = head[nowr].begin(); it != head[nowr].end();) {
+          if (intersection(ptR, p[it->id], ptL, p[ch])) {
+            head[it->id].erase(it->c);
+            head[nowr].erase(it++);
+          } else {
+            it++;
+          }
+        }
+        nowr = ch;
+        addEdge(nowl, nowr);
+      }
+    }
+  }
+
+  std::vector<std::pair<int, int>> getEdge() {
+    std::vector<std::pair<int, int>> ret;
+    ret.reserve(n);
+    std::list<Edge>::iterator it;
+    for (int i = 0; i < n; i++) {
+      for (it = head[i].begin(); it != head[i].end(); it++) {
+        if (it->id < i) continue;
+        ret.push_back(std::make_pair(p[i].id, p[it->id].id));
+      }
+    }
+    return ret;
+  }
+};
+```
+
+== #text("二、三维计算几何")
+```
+https://oi-wiki.org/geometry/2d/
+https://oi-wiki.org/geometry/3d/
+```
+
+== #text("仿射变换")
+
+= #text("数论")
+
+== #text("Exgcd")
 
 ```cpp
 i64 exgcd(i64 a, i64 b, i64&x, i64&y) {
@@ -131,6 +799,75 @@ i64 exgcd(i64 a, i64 b, i64&x, i64&y) {
     return g;
 }
 ```
+
+== #text("Bsgs（gcd(a,p)==1）")
+
+```cpp
+ll bsgs(ll a, ll b, ll p) {
+    if (1 % p == b % p) return 0;
+    unordered_map<ll, ll>hash;
+    ll m = ceil(sqrt(p));
+
+    // Baby-step: 预处理 a^j * b 并存入哈希表
+    ll cur = b % p;
+    for (int j = 0; j<m; j++) {
+        hash[cur] = j;
+        cur = cur * a % p;
+    }
+
+    // Giant-step: 计算 am = a^m，然后枚举 i 检查 am^i
+    ll am = 1;
+    for (int i = 0; i<m; i++) am = am * a % p;
+
+    cur = am;
+    for (int i = 1; i<= m; i++) {
+        if (hash.count(cur)) return i * m - hash[cur];
+        cur = cur * am % p;
+    }
+    return -1; // 无解
+}
+```
+
+== #text("Excrt（扩展中国剩余定理）")
+
+```cpp
+// 这里的乘法取模是为了防止 (a * b) % m 溢出，如果 a, b 较小可直接使用 a * b % m
+ll qmul(ll a, ll b, ll m) {
+    ll res = 0;
+    while (b) {
+        if (b&1) res = (res + a) % m;
+        a = (a + a) % m;
+        b>>= 1;
+    }
+    return res;
+}
+// n 个方程：x = r[i] (mod m[i])
+ll excrt(vector<ll>&m, vector<ll>&r) {
+    ll M = m[0], R = r[0]; // R 为当前的解，M 为当前的最小公倍数
+    for (int i = 1; i<m.size(); i++) {
+        ll x, y;
+        ll d = exgcd(M, m[i], x, y);
+        if ((r[i] - R) % d != 0) return -1; // 无解
+
+        // 求解 M*x = r[i] - R (mod m[i])
+        ll mod = m[i] / d;
+        x = qmul((r[i] - R) / d, x, mod); // 这里的乘法注意溢出
+        if (x<0) x += mod;
+
+        R += x * M;
+        M = M / d * m[i];
+        R = (R % M + M) % M;
+    }
+    return R;
+}
+```
+
+== #text("拓展欧拉定理")
+$ a^k equiv cases(
+  a^(k mod phi(m)), & gcd(a, m) = 1,
+  a^k, & gcd(a, m) != 1 and k < phi(m), 
+  a^(k mod phi(m) + phi(m)), & gcd(a, m) != 1 and k >= phi(m),
+) quad (mod m) $
 
 = #text("欧拉路径")
 
@@ -242,68 +979,6 @@ ll lagrange_linear(int n, ll k, vector<ll>&y) {
         else ans = (ans + up * down % MOD) % MOD;
     }
     return ans;
-}
-```
-
-= #text("Bsgs（gcd(a,p)==1）")
-
-```cpp
-ll bsgs(ll a, ll b, ll p) {
-    if (1 % p == b % p) return 0;
-    unordered_map<ll, ll>hash;
-    ll m = ceil(sqrt(p));
-
-    // Baby-step: 预处理 a^j * b 并存入哈希表
-    ll cur = b % p;
-    for (int j = 0; j<m; j++) {
-        hash[cur] = j;
-        cur = cur * a % p;
-    }
-
-    // Giant-step: 计算 am = a^m，然后枚举 i 检查 am^i
-    ll am = 1;
-    for (int i = 0; i<m; i++) am = am * a % p;
-
-    cur = am;
-    for (int i = 1; i<= m; i++) {
-        if (hash.count(cur)) return i * m - hash[cur];
-        cur = cur * am % p;
-    }
-    return -1; // 无解
-}
-```
-
-= #text("Excrt（扩展中国剩余定理）")
-
-```cpp
-// 这里的乘法取模是为了防止 (a * b) % m 溢出，如果 a, b 较小可直接使用 a * b % m
-ll qmul(ll a, ll b, ll m) {
-    ll res = 0;
-    while (b) {
-        if (b&1) res = (res + a) % m;
-        a = (a + a) % m;
-        b>>= 1;
-    }
-    return res;
-}
-// n 个方程：x = r[i] (mod m[i])
-ll excrt(vector<ll>&m, vector<ll>&r) {
-    ll M = m[0], R = r[0]; // R 为当前的解，M 为当前的最小公倍数
-    for (int i = 1; i<m.size(); i++) {
-        ll x, y;
-        ll d = exgcd(M, m[i], x, y);
-        if ((r[i] - R) % d != 0) return -1; // 无解
-
-        // 求解 M*x = r[i] - R (mod m[i])
-        ll mod = m[i] / d;
-        x = qmul((r[i] - R) / d, x, mod); // 这里的乘法注意溢出
-        if (x<0) x += mod;
-
-        R += x * M;
-        M = M / d * m[i];
-        R = (R % M + M) % M;
-    }
-    return R;
 }
 ```
 
@@ -1180,6 +1855,30 @@ Big operator*(const Big &b) const {
 = #text("闭区间线段树")
 ```cpp
     主要是文字说明一些注意点，比如左右区间为[l,m]和[m,r]，tl<m，走左，tr>m走右，点是没有长度的，长度由两个点相减得到，叶子节点r-l==1，r-l>=1才算有效区间，在一些区间问题常用这个写法，比如线段长度
+```
+= #text("杂项")
+
+== #text("sos dp")
+
+```cpp
+/*
+    做n次一维前缀和
+*/
+for(int i[1]=1;i[1]<=n;i[1]++)
+    for(int i[2]=1;i[2]<=n;i[2]++)
+        ...
+        for(int i[n]=1;i[n]<=n;i[n]++)
+            a[i[1]][i[2]][i[3]]...+=a[i[1]-1][i[2]]...;
+for(int i[1]=1;i[1]<=n;i[1]++)
+    for(int i[2]=1;i[2]<=n;i[2]++)
+        ...
+        for(int i[n]=1;i[n]<=n;i[n]++)
+            a[i[1]][i[2]][i[3]]...+=a[i[1]][i[2]-1]...;
+...
+```
+
+```text
+    1.upper_bound和lower_bound比map更快    
 ```
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，pbds，isap被特意卡的话常数比dinic大，")
 
