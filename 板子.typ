@@ -1879,6 +1879,7 @@ for(int i[1]=1;i[1]<=n;i[1]++)
 
 ```text
     1.upper_bound和lower_bound比map更快    
+    2.move函数和merge函数的用法
 ```
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，pbds，isap被特意卡的话常数比dinic大，")
 
