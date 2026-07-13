@@ -37,7 +37,8 @@
 #pagebreak()
 #set page(columns: 2)
 
-= #text("NTT")
+= #text("多项式与生成函数")
+== #text("NTT")
 ```cpp
 const int MOD = 998244353, G = 3; // 常见 NTT 模数及其原根
 //power是ksm
@@ -81,6 +82,73 @@ vector<int>multiply(vector<int>a, vector<int>b) {
         res[i % L] = (res[i % L] + a[i]) % MOD;
     }*/
     return a;}
+```
+
+== #text("常系数齐次线性递推")
+求一个满足 $k$ 阶齐次线性递推数列 $a_i$ 的第 $n$ 项，即：
+
+$ a_n = sum_(i=1)^k f_i times a_(n-i) $
+
+*输入格式* \
+第一行两个数 $n, k$，如题面所述。 \
+第二行 $k$ 个数，表示 $f$ \
+第三行 $k$ 个数，表示 $a$
+
+*输出格式* \
+一个数,表示$a_n mod 998244353$ 的值
+```cpp
+i64 Bostan_mori(vector<i64> &P, vector<i64> &Q, int n) {
+    vector<i64> Qm, A, B;
+    while(n) {
+        Qm = Q;
+        for (int i = 1; i < Qm.size(); i += 2) {
+            Qm[i] = (mod - Qm[i]) % mod; 
+        }
+        A = mul(P, Qm);
+        B = mul(Q, Qm);
+        int bit = n & 1;
+        vector<i64> nP, nQ;
+        for (int i = bit; i < A.size(); i += 2) {
+            nP.emplace_back(A[i]);
+        }
+        for (int i = 0; i < B.size(); i += 2) {
+            nQ.emplace_back(B[i]);
+        }
+        P = nP;
+        Q = nQ;
+        n >>= 1;   
+    }
+    return P[0] * inv(Q[0]) % mod;
+}
+void solve() {
+    int n, k;
+    cin >> n >> k;
+    vector<int> f(k);
+    for (auto &i : f) {
+        cin >> i;
+        i = (i % mod + mod) % mod;
+    }
+    vector<int> a(k);
+    for (auto &i : a) {
+        cin >> i;
+        i = (i % mod + mod) % mod;
+    }
+    vector<i64> Q(k + 1);
+    Q[0] = 1;
+    for (int i = 1; i < k + 1; i++) {
+        Q[i] = (mod - f[i - 1] % mod) % mod; 
+    }
+    vector<i64> P(k);
+    P[0] = (a[0] % mod + mod) % mod;
+    for (int i = 1; i < k; i++) {
+        P[i] = (a[i] % mod + mod) % mod;
+        for (int j = 0; j < i; j++) {
+            P[i] = (P[i] - 1ll * a[j] * f[i - j - 1] % mod + mod) % mod;
+        }
+    }
+    cout << Bostan_mori(P, Q, n) << '\n';
+    return ;
+}
 ```
 = #text("计算几何")
 
