@@ -1945,6 +1945,9 @@ for(int i[1]=1;i[1]<=n;i[1]++)
 ...
 ```
 
+== #text("CDQ分治")
+
+== #text("随手记")
 ```text
     1.upper_bound和lower_bound比map更快    
     2.move函数和merge函数的用法
