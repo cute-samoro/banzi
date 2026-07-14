@@ -1055,18 +1055,20 @@ vector<int>manacher(string s) {
 = #text("欧拉筛")
 
 ```cpp
-const int MAXN = 1000005;
-int primes[MAXN], cnt;
-bool is_not_prime[MAXN];
-
-void sieve(int n) {
-    for (int i = 2; i<= n; i++) {
-        if (!is_not_prime[i]) primes[cnt++] = i;
-        for (int j = 0; j<cnt&&i * primes[j]<= n; j++) {
-            is_not_prime[i * primes[j]] = true;
-            if (i % primes[j] == 0) break; // 核心：保证每个合数只被最小质因子筛掉
+vector<int> Euler(int n) {
+    vector<int> not_prime(n + 1, 0);
+    vector<int> prime;
+    for (int i = 2; i <= n; i++) {
+        if (!not_prime[i]) {
+            prime.emplace_back(i);
+        }
+        for (auto j : prime) {
+            if (1ll * i * j > n) break;
+            not_prime[i * j] = 1;
+            if (i % j == 0) break;
         }
     }
+    return prime;
 }
 ```
 
@@ -1285,9 +1287,12 @@ int main() {
     return 0;}
 ```
 
-= #text("强连通分量")
+= #text("强连通分量-tarjan")
 
 ```cpp
+/*
+    关于tarjan算法的一些个人理解(待补充)
+*/
 const int N = 1e5 + 5;
 vector<int>g[N];
 int dfn[N], low[N], timer;
@@ -1993,6 +1998,11 @@ Big operator*(const Big &b) const {
     主要是文字说明一些注意点，比如左右区间为[l,m]和[m,r]，tl<m，走左，tr>m走右，点是没有长度的，长度由两个点相减得到，叶子节点r-l==1，r-l>=1才算有效区间，在一些区间问题常用这个写法，比如线段长度
 ```
 = #text("杂项")
+
+== #text("三分")
+```cpp
+
+```
 
 == #text("sos dp")
 
