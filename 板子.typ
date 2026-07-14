@@ -2015,12 +2015,107 @@ for(int i[1]=1;i[1]<=n;i[1]++)
 
 == #text("CDQ分治")
 
+== #text("pb_ds") 
+```cpp
+#include <bits/stdc++.h>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+
+using namespace std;
+using namespace __gnu_pbds;
+
+template<class T>
+using ordered_set = tree<
+    T,
+    null_type,
+    less<T>,
+    rb_tree_tag,
+    tree_order_statistics_node_update
+>;
+/*
+核心函数
+s.order_of_key(x);   // 小于 x 的元素个数
+s.find_by_order(k);  // 第 k 小元素的迭代器，k 从 0 开始
+*/
+void s1() {
+    ordered_set<int> s;
+
+    s.insert(5);
+    s.insert(2);
+    s.insert(9);
+
+    cout << s.order_of_key(5) << '\n';      // 1，只有 2 小于 5
+    cout << *s.find_by_order(0) << '\n';    // 2
+    cout << *s.find_by_order(1) << '\n';    // 5
+    cout << *s.find_by_order(2) << '\n';    // 9
+
+    s.erase(5);    
+}
+/*
+如果题目要处理重复元素，推荐用 pair<int, int>
+*/
+ordered_set<pair<int, int>> s;
+int idx = 0;
+
+void insert(int x) {
+    s.insert({x, ++idx});   //这样每个相同的 x 会因为 idx 不同而被当成不同元素。
+}
+
+//一些常见操作的模板
+const int INF = 1e9;
+
+ordered_set<pair<int, int>> s;
+int idx = 0;
+
+void insert(int x) {
+    s.insert({x, ++idx});
+}
+
+// 删除一个 x
+void erase_one(int x) {
+    auto it = s.lower_bound({x, -INF});
+    if (it != s.end() && it->first == x) {
+        s.erase(it);
+    }
+}
+
+// x 的排名：比 x 小的数 + 1
+int rank_of(int x) {
+    return s.order_of_key({x, -INF}) + 1;
+}
+
+// 第 k 小，k 从 1 开始
+int kth(int k) {
+    return s.find_by_order(k - 1)->first;
+}
+
+// 严格小于 x 的最大值
+int predecessor(int x) {
+    int pos = s.order_of_key({x, -INF});
+    return s.find_by_order(pos - 1)->first;
+}
+
+// 严格大于 x 的最小值
+int successor(int x) {
+    auto it = s.upper_bound({x, INF});
+    return it->first;
+}
+/*
+一些注意事项
+find_by_order(k) 的 k 是 从 0 开始。
+order_of_key(x) 返回的是 严格小于 x 的数量。
+PBDS 不是标准 C++，只能在 GNU G++ 下用。
+不建议用 less_equal<int> 来模拟 multiset，删除和查找容易出怪问题；打 ACM 用 pair<int,int> 最稳。
+*/
+```
+
 == #text("随手记")
 ```text
     1.upper_bound和lower_bound比map更快    
     2.move函数和merge函数的用法
 ```
-#text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，pbds，isap被特意卡的话常数比dinic大，")
+
+#text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，isap被特意卡的话常数比dinic大，")
 
 #text("// 1. (x&b)>(b>>1) 判断x在b的最高位是否为1")
 
