@@ -84,7 +84,7 @@ vector<int>multiply(vector<int>a, vector<int>b) {
     return a;}
 ```
 
-== #text("常系数齐次线性递推")
+== #text("常系数齐次线性递推-bostan-mori算法")
 求一个满足 $k$ 阶齐次线性递推数列 $a_i$ 的第 $n$ 项，即：
 
 $ a_n = sum_(i=1)^k f_i times a_(n-i) $
@@ -149,6 +149,74 @@ void solve() {
     cout << Bostan_mori(P, Q, n) << '\n';
     return ;
 }
+```
+*Problem Statement* \
+You are given a sequence of positive integers $A = (A_1, A_2, ..., A_N)$ of length $N$, and positive integers $S$ and $T$.
+
+Find the number of sequences of non-negative integers $(c_1, c_2, ..., c_N)$ that satisfy all of the following conditions, modulo $998244353$:
+
+$ c_1 + c_2 + dots.c + c_N = S $
+$ A_1 c_1 + A_2 c_2 + dots.c + A_N c_N = T $
+
+*Constraints* \
+$1 <= N <= 20$ \
+$1 <= S <= 10^18$ \
+$1 <= T <= 10^18$ \
+$1 <= A_i <= 200$ \
+$sum_(i=1)^N A_i <= 200$ \
+All input values are integers
+```cpp
+//像dp模拟bostan-mori的过程,实现也简单,处理方式很巧妙   gpt的说法:如果分母可以分解成容易处理的稀疏因子，并且经过“共轭相乘、指数变成偶数、指数除以 2”后，分母结构和分子规模仍然可控，就可以仿照这道题实现特殊化的 Bostan–Mori。
+#include<bits/stdc++.h>
+using namespace std;
+using i64 = long long;
+const int mod = 998244353;
+void mol(i64 &x) {
+    x %= mod;
+    if (x < 0) x += mod;
+    return ;
+}
+void solve() {
+    i64 n, S, T;
+    cin >> n >> S >> T;
+    vector<int> a(n);
+    int m = 0;
+    for (auto &i : a) {
+        cin >> i;
+        m += i;
+    }
+    vector<vector<i64>> dp(2 * n + 1, vector<i64>(2 * m + 1));
+    vector<vector<i64>> ndp;
+    dp[0][0] = 1;
+    while(S | T) {
+        ndp = dp;
+        for (auto i : a) {
+            for (int j = n * 2; j >= 1; j--) {
+                for (int k = m * 2; k >= i; k--) {
+                    ndp[j][k] += ndp[j - 1][k - i];
+                    mol(ndp[j][k]);
+                }
+            }
+        }
+        int s = S & 1, t = T & 1;
+        for (int i = 0; (i << 1 | s) <= n * 2; i++) {
+            for (int j = 0; (j << 1 | t) <= m * 2; j++) {
+                dp[i][j] = ndp[i << 1 | s][j << 1 | t];
+                mol(dp[i][j]);
+            }
+        }
+        S >>= 1;
+        T >>= 1;    
+    }
+    cout << dp[0][0] << '\n';
+    return ;
+}
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    solve();
+    return 0;
+}   
 ```
 = #text("计算几何")
 
