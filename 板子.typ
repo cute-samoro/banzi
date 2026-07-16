@@ -1005,6 +1005,61 @@ $ a^k equiv cases(
   a^(k mod phi(m) + phi(m)), & gcd(a, m) != 1 and k >= phi(m),
 ) quad (mod m) $
 
+== #text("MILLER-ROBIN素性检验")
+```cpp
+using u64 = uint64_t;
+using u128 = __uint128_t;
+
+u64 mul_mod(u64 a, u64 b, u64 mod) {
+    return (u128)a * b % mod;
+}
+u64 pow_mod(u64 a, u64 b, u64 mod) {
+    u64 res = 1;
+    while (b) {
+        if (b & 1) res = mul_mod(res, a, mod);
+        a = mul_mod(a, a, mod);
+        b >>= 1;
+    }
+    return res;
+}
+bool is_prime(u64 n) {
+    if (n < 2) return false;
+    static const u64 small_primes[] = {
+        2, 3, 5, 7, 11, 13,
+        17, 19, 23, 29, 31, 37
+    };
+    for (u64 p : small_primes) {
+        if (n % p == 0) return n == p;
+    }
+    // n - 1 = d * 2^s
+    u64 d = n - 1;
+    int s = 0;
+    while ((d & 1) == 0) {
+        d >>= 1;
+        ++s;
+    }
+    // 对所有 uint64_t 都成立的确定性底数
+    static const u64 bases[] = {
+        2, 325, 9375, 28178,
+        450775, 9780504, 1795265022
+    };
+    for (u64 a : bases) {
+        if (a % n == 0) continue;
+        u64 x = pow_mod(a % n, d, n);
+        if (x == 1 || x == n - 1) continue;
+        bool passed = false;
+        for (int r = 1; r < s; ++r) {
+            x = mul_mod(x, x, n);
+            if (x == n - 1) {
+                passed = true;
+                break;
+            }
+        }
+        if (!passed) return false;
+    }
+    return true;
+}
+```
 = #text("欧拉路径")
 
 ```cpp
