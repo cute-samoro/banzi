@@ -1060,6 +1060,147 @@ bool is_prime(u64 n) {
     return true;
 }
 ```
+
+== #text("Pollard Rho 算法--分解质因子")
+```cpp
+using u64 = std::uint64_t;
+using u128 = __uint128_t;
+
+std::mt19937_64 rng(
+    std::chrono::steady_clock::now().time_since_epoch().count()
+);
+
+u64 mul_mod(u64 a, u64 b, u64 mod) {
+    return static_cast<u128>(a) * b % mod;
+}
+
+u64 power_mod(u64 a, u64 exponent, u64 mod) {
+    u64 result = 1;
+
+    while (exponent > 0) {
+        if (exponent & 1) {
+            result = mul_mod(result, a, mod);
+        }
+
+        a = mul_mod(a, a, mod);
+        exponent >>= 1;
+    }
+
+    return result;
+}
+
+// 对 uint64_t 范围确定正确的 Miller-Rabin。
+bool is_prime(u64 n) {
+    if (n < 2) {
+        return false;
+    }
+
+    for (u64 p : {2ULL, 3ULL, 5ULL, 7ULL, 11ULL, 13ULL,
+                  17ULL, 19ULL, 23ULL, 29ULL, 31ULL, 37ULL}) {
+        if (n % p == 0) {
+            return n == p;
+        }
+    }
+
+    u64 d = n - 1;
+    int s = 0;
+
+    while ((d & 1) == 0) {
+        d >>= 1;
+        ++s;
+    }
+
+    constexpr u64 bases[] = {
+        2ULL,
+        325ULL,
+        9375ULL,
+        28178ULL,
+        450775ULL,
+        9780504ULL,
+        1795265022ULL
+    };
+
+    for (u64 a : bases) {
+        if (a % n == 0) {
+            continue;
+        }
+
+        u64 x = power_mod(a % n, d, n);
+
+        if (x == 1 || x == n - 1) {
+            continue;
+        }
+
+        bool passed = false;
+
+        for (int r = 1; r < s; ++r) {
+            x = mul_mod(x, x, n);
+
+            if (x == n - 1) {
+                passed = true;
+                break;
+            }
+        }
+
+        if (!passed) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+u64 pollard_rho(u64 n) {
+    if (n % 2 == 0) {
+        return 2;
+    }
+
+    if (n % 3 == 0) {
+        return 3;
+    }
+
+    while (true) {
+        u64 x = rng() % (n - 2) + 2;
+        u64 y = x;
+        u64 c = rng() % (n - 1) + 1;
+        u64 d = 1;
+
+        auto next = [&](u64 value) -> u64 {
+            return static_cast<u64>(
+                (static_cast<u128>(mul_mod(value, value, n)) + c) % n
+            );
+        };
+
+        while (d == 1) {
+            x = next(x);
+            y = next(next(y));
+
+            u64 difference = x > y ? x - y : y - x;
+            d = std::gcd(difference, n);
+        }
+
+        if (d != n) {
+            return d;
+        }
+    }
+}
+
+void factorize(u64 n, std::vector<u64>& factors) {
+    if (n == 1) {
+        return;
+    }
+
+    if (is_prime(n)) {
+        factors.push_back(n);
+        return;
+    }
+
+    u64 factor = pollard_rho(n);
+
+    factorize(factor, factors);
+    factorize(n / factor, factors);
+}
+```
 = #text("欧拉路径")
 
 ```cpp
@@ -2173,7 +2314,32 @@ PBDS 不是标准 C++，只能在 GNU G++ 下用。
 不建议用 less_equal<int> 来模拟 multiset，删除和查找容易出怪问题；打 ACM 用 pair<int,int> 最稳。
 */
 ```
+== #text("floyd判圈法")
+Floyd 判圈算法使用两个指针：\
+慢指针（Tortoise）：每次移动一步。\
+快指针（Hare）：每次移动两步。 \
+如果链表中存在环，那么快指针和慢指针最终会在环中相遇。如果链表中不存在环，快指针会先到达链表的末端。
+```cpp
+// Floyd 判圈法（快慢指针）
+// 适用于链表或函数图：每个节点至多有一个后继节点
 
+template <class Next>
+bool floydCycle(int start, Next next, int nullNode = -1) {
+    int slow = start;
+    int fast = start;
+
+    while (fast != nullNode && next(fast) != nullNode) {
+        slow = next(slow);          // 每次走一步
+        fast = next(next(fast));    // 每次走两步
+
+        if (slow == fast) {
+            return true;
+        }
+    }
+
+    return false;
+}
+```
 == #text("随手记")
 ```text
     1.upper_bound和lower_bound比map更快    
