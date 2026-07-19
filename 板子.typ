@@ -2195,6 +2195,22 @@ Big operator*(const Big &b) const {
 ```
 = #text("杂项")
 
+== #text("__int128输出(cout实现)")
+```cpp
+void print(__int128 x) {
+    if (x == 0) {
+        cout << "0\n";
+        return;
+    }
+    string s;
+    while (x) {
+        s.push_back(char('0' + x % 10));
+        x /= 10;
+    }
+    reverse(s.begin(), s.end());
+    cout << s << '\n';
+}
+```
 == #text("三分")
 ```cpp
 
@@ -2340,12 +2356,23 @@ bool floydCycle(int start, Next next, int nullNode = -1) {
     return false;
 }
 ```
+
+== #text("st表上二分")
+```cpp
+
+```
 == #text("随手记")
 ```text
     1.upper_bound和lower_bound比map更快    
     2.move函数和merge函数的用法
 ```
 
+== #text("一些思维(废话)")
+```text
+    由少到多,模拟过程找性质
+    找下一个
+    从条件入手,紧抓条件,找方向
+```
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，isap被特意卡的话常数比dinic大，")
 
 #text("// 1. (x&b)>(b>>1) 判断x在b的最高位是否为1")
