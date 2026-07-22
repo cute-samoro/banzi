@@ -1358,12 +1358,12 @@ void add(int l, int r, ll v) {
 = #text("前缀数组（来自oiwiki）")
 
 ```cpp
-vector<int>prefix_function(string s) {
+vector<int> prefix_function(string s) {
   int n = (int)s.length();
-  vector<int>pi(n);
-  for (int i = 1; i<n; i++) {
+  vector<int> pi(n);
+  for (int i = 1; i < n; i++) {
     int j = pi[i - 1];
-    while (j>0&&s[i] != s[j]) j = pi[j - 1];
+    while (j > 0 && s[i] != s[j]) j = pi[j - 1];
     if (s[i] == s[j]) j++;
     pi[i] = j;
   }
@@ -2195,6 +2195,16 @@ Big operator*(const Big &b) const {
 ```
 = #text("杂项")
 
+== #text("优先队列自定义结构体比较")
+```cpp
+struct cmp{
+    bool operator() (const node &x, const node &y) {
+        //return x.a * y.b > x.b * y.a;
+        return x.a * y.b < x.b * y.a;
+    }
+}; // 队首元素 a * other.b > b * other.a,这个细节需要注意,是反过来的
+priority_queue<node, vector<node>, cmp> q;
+```
 == #text("__int128输出(cout实现)")
 ```cpp
 void print(__int128 x) {
