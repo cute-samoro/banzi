@@ -2375,6 +2375,11 @@ bool floydCycle(int start, Next next, int nullNode = -1) {
 ```text
     1.upper_bound和lower_bound比map更快    
     2.move函数和merge函数的用法
+    3.#define File(name) freopen(#name".in", "r", stdin); freopen(#name".out", "w", stdout);
+    4.x &= x - 1 每次删去最低位置上的1, Sub = (sub – 1) & mask // 遍历该集合的所有子集
+    5. >> 优先级比 & 高
+    6.一些并行运算确实要更快
+    7.Prüfer序列(造树)
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
@@ -2389,6 +2394,7 @@ $ "ans" = sum max(0, b_i - b_(i-1)) $
         从条件入手,紧抓条件,找方向
     2.树上选点,如果可以重复的话,对称可能可以产生一些性质,可以尝试平均等方法利用性质
     3.换根问题转化为固定根
+    4.贪心题从收益函数的角度去分析
 ```
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，isap被特意卡的话常数比dinic大，")
 
@@ -2421,8 +2427,6 @@ $ "ans" = sum max(0, b_i - b_(i-1)) $
 #text("lcp优化--Ukkonen 算法或 Myers 差分算法")
 
 #text("期望dp，计数dp（插入dp），动态dp，状压dp")
-
-#text("Sub = (sub – 1) & mask // 遍历该集合的所有子集")
 
 #text("笛卡尔树，差分约束，猫树，折半搜索，判断能否构成立体图形计算某点所有距离平方")
 
