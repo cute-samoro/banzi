@@ -920,7 +920,104 @@ https://oi-wiki.org/geometry/3d/
 == #text("仿射变换")
 
 = #text("数论")
+== #text("欧拉筛")
 
+```cpp
+vector<int> Euler(int n) {
+    vector<int> not_prime(n + 1, 0);
+    vector<int> prime;
+    for (int i = 2; i <= n; i++) {
+        if (!not_prime[i]) {
+            prime.emplace_back(i);
+        }
+        for (auto j : prime) {
+            if (1ll * i * j > n) break;
+            not_prime[i * j] = 1;
+            if (i % j == 0) break;
+        }
+    }
+    return prime;
+}
+```
+== #text("倍数筛(求约数数量O(nlogn))")
+```cpp
+vector<vector<int>> divisors(N + 1);
+
+for (int d = 1; d <= N; ++d) {
+    for (int x = d; x <= N; x += d) {
+        divisors[x].push_back(d);
+    }
+}
+```
+== #text("线性筛求范围的莫比乌斯函数")
+```cpp
+vector<int> primes;
+vector<int> mu;
+vector<char> composite;
+
+void init_mu(int N) {
+    mu.assign(N + 1, 0);
+    composite.assign(N + 1, false);
+
+    mu[1] = 1;
+
+    for (int i = 2; i <= N; ++i) {
+        if (!composite[i]) {
+            primes.push_back(i);
+            mu[i] = -1;
+        }
+
+        for (int p : primes) {
+            if (1LL * i * p > N) break;
+
+            composite[i * p] = true;
+
+            if (i % p == 0) {
+                // p^2 | i * p
+                mu[i * p] = 0;
+                break;
+            } else {
+                // 增加了一个不同的质因子 p
+                mu[i * p] = -mu[i];
+            }
+        }
+    }
+}
+```
+== #text("求多个数的欧拉函数")
+
+```cpp
+vector<int> cal_euler(int x) {
+    vector<int> re(x + 1);
+    vector<int> prime;
+    vector<int> not_prime(x + 1, 0);
+    for (int i = 2; i <= x; i++) {
+        if (!not_prime[i]) {
+            prime.emplace_back(i);
+            re[i] = i - 1;
+        }
+        for (auto j : prime) {
+            if (i * j > x) break;
+            not_prime[i * j] = 1;
+            if (i % j == 0) {
+                re[i * j] = re[i] * j;
+            }
+            else {
+                re[i * j] = re[i] * re[j];
+            }
+            if (i % j == 0) break;
+        }
+    }
+    return re;
+}
+```
+== #text("线性求逆元")
+```cpp
+inv_num[1] = 1;
+for (int i = 2; i < limit; i++) {
+    inv_num[i] = (mod - mod / i) * inv_num[mod % i] % mod;
+}
+```
 == #text("Exgcd")
 
 ```cpp
@@ -1201,7 +1298,42 @@ void factorize(u64 n, std::vector<u64>& factors) {
     factorize(n / factor, factors);
 }
 ```
-= #text("欧拉路径")
+= #text("图论")
+== #text("dsu on tree")
+```cpp
+void dfs_3(int p, int fa, bool keep) {
+    for (auto i : e[p]) {
+        if (i == fa || i == heavy[p]) continue;
+        dfs_3(i, p, 0);
+    }
+
+    if (heavy[p] != -1) {
+        dfs_3(heavy[p], p, 1);
+    }
+
+    //query(p, p);
+    //add(p, 1);    
+
+    for (auto i : e[p]) {
+        if (i == fa || i == heavy[p]) continue;
+
+        // for (int j = tin[i]; j <= tout[i]; j++) {
+        //     query(euler[j], p);
+        // }
+
+        // for (int j = tin[i]; j <= tout[i]; j++) {
+        //     add(euler[j], +1);
+        // }
+    }
+    if (!keep) {
+        for (int i = tin[p]; i <= tout[p]; i++) {
+            add(euler[i], -1);
+        }
+    }
+    return ;
+}
+```
+== #text("欧拉路径")
 
 ```cpp
 const int MAXN = 100005;
@@ -1226,6 +1358,298 @@ void dfs(int u) {
 
 // 得到路径：reverse(path.begin(), path.end());
 ```
+== #text("hall定理")
+- #text("设二分图 G = (L, R, E)，L 为左部，R 为右部。")
+- #text("1) 存在匹配覆盖 L 中所有顶点 当且仅当 对任意子集 S ⊆ L，其邻域 N(S) 满足：")
+- #text("|N(S)| ≥ |S|")
+- #text("2) 最大匹配大小 = |L| - max_{( |S| - |N(S)| ) | S ⊆ L}")
+- #text("（若该值 < |L|，则无法完全覆盖 L）")
+== #text("二分图最大匹配（匈牙利算法，稠密图且点数大于1e4不适用）")
+
+```cpp
+const int MAXN = 505; // 左侧集合点的最大数量
+vector<int> adj[MAXN]; // 邻接表，只存从左往右的边
+int match[MAXN];      // match[y] = x 表示右侧点 y 匹配了左侧点 x
+bool vis[MAXN];       // 标记右侧点在单次 DFS 中是否被访问过
+bool dfs(int u) {
+    for (int v : adj[u]) {
+        if (!vis[v]) {
+            vis[v] = true;
+            // 如果右侧点没有匹配，或者原匹配点可以找到新的增广路
+            if (match[v] == -1 || dfs(match[v])) {
+                match[v] = u;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+int solve(int n_left) {
+    int ans = 0;
+    memset(match, -1, sizeof(match));
+    for (int i = 1; i<= n_left; i++) {
+        memset(vis, false, sizeof(vis)); // 每次都要重置
+        if (dfs(i)) ans++;
+    }
+    return ans;
+}
+```
+== #text("最小费用最大流（spfa）")
+
+```cpp
+struct MCMF {
+    struct Edge { int to, rev; long long cap, cost; };
+    vector<vector<Edge>> g;
+    vector<long long> dist;
+    vector<int> pre, pre_id;
+    vector<bool> inq;
+    void init(int n) { g.assign(n, {}); }
+    void add_edge(int u, int v, long long cap, long long cost) {
+        g[u].push_back({v, (int)g[v].size(), cap, cost});
+        g[v].push_back({u, (int)g[u].size() - 1, 0, -cost});
+    }
+bool spfa(int s, int t) {
+       dist.assign(g.size(), 1e18);
+       inq.assign(g.size(), false);
+       pre.assign(g.size(), -1);
+       pre_id.assign(g.size(), -1);
+       queue<int> q;
+       dist[s] = 0; q.push(s); inq[s] = true;
+       while (!q.empty()) {
+           int u = q.front(); q.pop(); inq[u] = false;
+           for (int i = 0; i < (int)g[u].size(); ++i) {
+               auto &e = g[u][i];
+               if (e.cap > 0 && dist[e.to] > dist[u] + e.cost) {
+                   dist[e.to] = dist[u] + e.cost;
+                   pre[e.to] = u;
+                   pre_id[e.to] = i;
+                   if (!inq[e.to]) {
+                       q.push(e.to);
+                       inq[e.to] = true;
+                   }
+               }
+           }
+       }
+       return dist[t] != 1e18;
+   }
+pair<long long, long long> min_cost_flow(int s, int t) {
+        long long flow = 0, cost = 0;
+        while (spfa(s, t)) {
+            long long f = 1e18;
+            for (int v = t; v != s; v = pre[v])
+                f = min(f, g[pre[v]][pre_id[v]].cap);
+            flow += f;
+            for (int v = t; v != s; v = pre[v]) {
+                auto &e = g[pre[v]][pre_id[v]];
+                e.cap -= f;
+                g[v][e.rev].cap += f;
+                cost += f * e.cost;
+            }
+        }
+        return {flow, cost};
+    }
+};
+如果费用非负且追求稳定复杂度，可用 Dijkstra + 势能 代替 SPFA。
+```
+== #text("最大流（dinic算法）")
+
+```cpp
+struct Dinic {
+    struct Edge { int to, rev; long long cap; };
+    vector<vector<Edge>> g;
+    vector<int> lev, iter;
+    void init(int n) { g.assign(n, {}); }
+    void add_edge(int u, int v, long long cap) {
+        g[u].push_back({v, (int)g[v].size(), cap});
+        g[v].push_back({u, (int)g[u].size() - 1, 0});
+    }
+    void bfs(int s) {
+        fill(lev.begin(), lev.end(), -1);
+        queue<int> q;
+        lev[s] = 0; q.push(s);
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (auto &e : g[u]) {
+                if (e.cap > 0 && lev[e.to] == -1) {
+                    lev[e.to] = lev[u] + 1;
+                    q.push(e.to);
+                }
+            }
+        }
+    }
+long long dfs(int u, int t, long long f) {
+      if (u == t) return f;
+      for (int &i = iter[u]; i < (int)g[u].size(); ++i) {
+          auto &e = g[u][i];
+          if (e.cap > 0 && lev[e.to] == lev[u] + 1) {
+              long long d = dfs(e.to, t, min(f, e.cap));
+              if (d > 0) {
+                  e.cap -= d;
+                  g[e.to][e.rev].cap += d;
+                  return d;
+              }
+          }
+      }
+      return 0;
+  }
+long long max_flow(int s, int t) {
+        long long flow = 0;
+        lev.resize(g.size()); iter.resize(g.size());
+        while (true) {
+            bfs(s);
+            if (lev[t] == -1) break;
+            fill(iter.begin(), iter.end(), 0);
+            long long f;
+            while ((f = dfs(s, t, 1e18)) > 0) flow += f;
+        }
+        return flow;
+    }
+};
+最小割：最大流 = 最小割。求完最大流后，从源点沿剩余容量 >0 的边 DFS，能到达的点集就是 S，其余为 T。
+```
+
+== #text("有源汇最大流")
+
+```cpp
+struct BoundFlow {
+    Dinic dinic;
+    vector<long long> in;
+    int S, T; // 超级源汇
+    void init(int n) {
+        dinic.init(n + 2);
+        in.assign(n + 2, 0);
+        S = n; T = n + 1;
+    }
+    // 添加有上下界的边 (u->v, l, r)
+    void add_edge(int u, int v, long long l, long long r) {
+        in[u] -= l; in[v] += l;
+        dinic.add_edge(u, v, r - l);
+    }
+    bool feasible() {
+        long long total = 0;
+        for (int i = 0; i < S; ++i) { // S 是原图中最后一个点下标+1 ？
+            if (in[i] > 0) {
+                dinic.add_edge(S, i, in[i]);
+                total += in[i];
+            } else if (in[i] < 0) {
+                dinic.add_edge(i, T, -in[i]);
+            }
+        }
+        return dinic.max_flow(S, T) == total;
+    }
+// 有源汇 s,t 的最大流（先调用 add_edge 建图再调这个）
+    long long max_flow_with_bound(int s, int t) {
+        add_edge(t, s, 0, 1e18); // 加下限0的边
+        if (!feasible()) return -1; // 无解
+        long long flow = dinic.g[s].back().cap; // t->s 反向边容量 = 可行流中 s->t 的流量
+        // 删掉 t->s 附加边
+        dinic.g[t].pop_back(); dinic.g[s].pop_back();
+        return flow + dinic.max_flow(s, t);
+    }
+};
+上面 feasible() 中的 S 是 S 的点编号，初始化时 S = n，但循环里 i < S 跑到了 n-1，即所有原图点（0~n-1）。初始化时传入点数即可。
+无源汇可行流
+每个点计算 in[v] = 所有入边下限和 - 出边下限和。
+建超级源 S 和超级汇 T。
+若 in[v] > 0，连 S -> v 容量 in[v]；若 in[v] < 0，连 v -> T 容量 -in[v]。
+原边连容量 r - l。
+跑最大流，若从 S 出发的所有边满流，则有解
+```
+= #text("数据结构")
+== #text("可删除并查集")
+```cpp
+#include <iostream>
+#include <numeric>
+#include <vector>
+using namespace std;
+
+class DeletableDSU {
+private:
+    vector<int> parent;
+    vector<int> setSize;
+    vector<int> id;
+    vector<long long> setSum;
+    int nodeCount;
+
+public:
+    DeletableDSU(int n, int maxOperations)
+        : parent(n + maxOperations + 1),
+          setSize(n + maxOperations + 1),
+          id(n + 1),
+          setSum(n + maxOperations + 1),
+          nodeCount(n) {
+        for (int i = 1; i <= n; ++i) {
+            parent[i] = i;
+            setSize[i] = 1;
+            setSum[i] = i;
+            id[i] = i;
+        }
+    }
+
+    int find(int x) {
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]);
+        }
+        return parent[x];
+    }
+
+    void unite(int x, int y) {
+        int rootX = find(id[x]);
+        int rootY = find(id[y]);
+
+        if (rootX == rootY) {
+            return;
+        }
+
+        if (setSize[rootX] > setSize[rootY]) {
+            swap(rootX, rootY);
+        }
+
+        parent[rootX] = rootY;
+        setSize[rootY] += setSize[rootX];
+        setSum[rootY] += setSum[rootX];
+    }
+
+    // 将 x 从原集合删除，并让它成为单元素集合
+    void erase(int x) {
+        int oldRoot = find(id[x]);
+
+        --setSize[oldRoot];
+        setSum[oldRoot] -= x;
+
+        ++nodeCount;
+        id[x] = nodeCount;
+        parent[nodeCount] = nodeCount;
+        setSize[nodeCount] = 1;
+        setSum[nodeCount] = x;
+    }
+
+    // 将 x 移动到 y 所在的集合
+    void move(int x, int y) {
+        int rootX = find(id[x]);
+        int rootY = find(id[y]);
+
+        if (rootX == rootY) {
+            return;
+        }
+
+        --setSize[rootX];
+        setSum[rootX] -= x;
+
+        ++nodeCount;
+        id[x] = nodeCount;
+        parent[nodeCount] = rootY;
+
+        ++setSize[rootY];
+        setSum[rootY] += x;
+    }
+
+    pair<int, long long> query(int x) {
+        int root = find(id[x]);
+        return {setSize[root], setSum[root]};
+    }
+};
+```
 
 = #text("马拉车")
 
@@ -1248,25 +1672,6 @@ vector<int>manacher(string s) {
 }
 ```
 
-= #text("欧拉筛")
-
-```cpp
-vector<int> Euler(int n) {
-    vector<int> not_prime(n + 1, 0);
-    vector<int> prime;
-    for (int i = 2; i <= n; i++) {
-        if (!not_prime[i]) {
-            prime.emplace_back(i);
-        }
-        for (auto j : prime) {
-            if (1ll * i * j > n) break;
-            not_prime[i * j] = 1;
-            if (i % j == 0) break;
-        }
-    }
-    return prime;
-}
-```
 
 = #text("拉格朗日插值（通用版，o(n²)）")
 
@@ -1404,36 +1809,7 @@ int main() {
 }
 ```
 
-= #text("二分图最大匹配（匈牙利算法，稠密图且点数大于1e4不适用）")
 
-```cpp
-const int MAXN = 505; // 左侧集合点的最大数量
-vector<int> adj[MAXN]; // 邻接表，只存从左往右的边
-int match[MAXN];      // match[y] = x 表示右侧点 y 匹配了左侧点 x
-bool vis[MAXN];       // 标记右侧点在单次 DFS 中是否被访问过
-bool dfs(int u) {
-    for (int v : adj[u]) {
-        if (!vis[v]) {
-            vis[v] = true;
-            // 如果右侧点没有匹配，或者原匹配点可以找到新的增广路
-            if (match[v] == -1 || dfs(match[v])) {
-                match[v] = u;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-int solve(int n_left) {
-    int ans = 0;
-    memset(match, -1, sizeof(match));
-    for (int i = 1; i<= n_left; i++) {
-        memset(vis, false, sizeof(vis)); // 每次都要重置
-        if (dfs(i)) ans++;
-    }
-    return ans;
-}
-```
 
 = #text("线性基")
 
@@ -1634,12 +2010,6 @@ inline void hash_combine(size_t& seed, size_t hash) {
 }
 ```
 
-= #text("hall定理")
-- #text("设二分图 G = (L, R, E)，L 为左部，R 为右部。")
-- #text("1) 存在匹配覆盖 L 中所有顶点 当且仅当 对任意子集 S ⊆ L，其邻域 N(S) 满足：")
-- #text("|N(S)| ≥ |S|")
-- #text("2) 最大匹配大小 = |L| - max_{( |S| - |N(S)| ) | S ⊆ L}")
-- #text("（若该值 < |L|，则无法完全覆盖 L）")
 
 = #text("Zobrist Hashing（xor hashing）")
 
@@ -1663,196 +2033,10 @@ hash[i] = rng();
 For each positive integer xx, there is a prime pp inside the interval [x,2x].
 ```
 
-= #text("求多个数的欧拉函数")
 
-```cpp
-vector<int> cal_euler(int x) {
-    vector<int> re(x + 1);
-    vector<int> prime;
-    vector<int> not_prime(x + 1, 0);
-    for (int i = 2; i <= x; i++) {
-        if (!not_prime[i]) {
-            prime.emplace_back(i);
-            re[i] = i - 1;
-        }
-        for (auto j : prime) {
-            if (i * j > x) break;
-            not_prime[i * j] = 1;
-            if (i % j == 0) {
-                re[i * j] = re[i] * j;
-            }
-            else {
-                re[i * j] = re[i] * re[j];
-            }
-            if (i % j == 0) break;
-        }
-    }
-    return re;
-}
-```
 
-= #text("最大流（dinic算法）")
 
-```cpp
-struct Dinic {
-    struct Edge { int to, rev; long long cap; };
-    vector<vector<Edge>> g;
-    vector<int> lev, iter;
-    void init(int n) { g.assign(n, {}); }
-    void add_edge(int u, int v, long long cap) {
-        g[u].push_back({v, (int)g[v].size(), cap});
-        g[v].push_back({u, (int)g[u].size() - 1, 0});
-    }
-    void bfs(int s) {
-        fill(lev.begin(), lev.end(), -1);
-        queue<int> q;
-        lev[s] = 0; q.push(s);
-        while (!q.empty()) {
-            int u = q.front(); q.pop();
-            for (auto &e : g[u]) {
-                if (e.cap > 0 && lev[e.to] == -1) {
-                    lev[e.to] = lev[u] + 1;
-                    q.push(e.to);
-                }
-            }
-        }
-    }
-long long dfs(int u, int t, long long f) {
-      if (u == t) return f;
-      for (int &i = iter[u]; i < (int)g[u].size(); ++i) {
-          auto &e = g[u][i];
-          if (e.cap > 0 && lev[e.to] == lev[u] + 1) {
-              long long d = dfs(e.to, t, min(f, e.cap));
-              if (d > 0) {
-                  e.cap -= d;
-                  g[e.to][e.rev].cap += d;
-                  return d;
-              }
-          }
-      }
-      return 0;
-  }
-long long max_flow(int s, int t) {
-        long long flow = 0;
-        lev.resize(g.size()); iter.resize(g.size());
-        while (true) {
-            bfs(s);
-            if (lev[t] == -1) break;
-            fill(iter.begin(), iter.end(), 0);
-            long long f;
-            while ((f = dfs(s, t, 1e18)) > 0) flow += f;
-        }
-        return flow;
-    }
-};
-最小割：最大流 = 最小割。求完最大流后，从源点沿剩余容量 >0 的边 DFS，能到达的点集就是 S，其余为 T。
-```
 
-= #text("有源汇最大流")
-
-```cpp
-struct BoundFlow {
-    Dinic dinic;
-    vector<long long> in;
-    int S, T; // 超级源汇
-    void init(int n) {
-        dinic.init(n + 2);
-        in.assign(n + 2, 0);
-        S = n; T = n + 1;
-    }
-    // 添加有上下界的边 (u->v, l, r)
-    void add_edge(int u, int v, long long l, long long r) {
-        in[u] -= l; in[v] += l;
-        dinic.add_edge(u, v, r - l);
-    }
-    bool feasible() {
-        long long total = 0;
-        for (int i = 0; i < S; ++i) { // S 是原图中最后一个点下标+1 ？
-            if (in[i] > 0) {
-                dinic.add_edge(S, i, in[i]);
-                total += in[i];
-            } else if (in[i] < 0) {
-                dinic.add_edge(i, T, -in[i]);
-            }
-        }
-        return dinic.max_flow(S, T) == total;
-    }
-// 有源汇 s,t 的最大流（先调用 add_edge 建图再调这个）
-    long long max_flow_with_bound(int s, int t) {
-        add_edge(t, s, 0, 1e18); // 加下限0的边
-        if (!feasible()) return -1; // 无解
-        long long flow = dinic.g[s].back().cap; // t->s 反向边容量 = 可行流中 s->t 的流量
-        // 删掉 t->s 附加边
-        dinic.g[t].pop_back(); dinic.g[s].pop_back();
-        return flow + dinic.max_flow(s, t);
-    }
-};
-上面 feasible() 中的 S 是 S 的点编号，初始化时 S = n，但循环里 i < S 跑到了 n-1，即所有原图点（0~n-1）。初始化时传入点数即可。
-无源汇可行流
-每个点计算 in[v] = 所有入边下限和 - 出边下限和。
-建超级源 S 和超级汇 T。
-若 in[v] > 0，连 S -> v 容量 in[v]；若 in[v] < 0，连 v -> T 容量 -in[v]。
-原边连容量 r - l。
-跑最大流，若从 S 出发的所有边满流，则有解
-```
-
-= #text("最小费用最大流（spfa）")
-
-```cpp
-struct MCMF {
-    struct Edge { int to, rev; long long cap, cost; };
-    vector<vector<Edge>> g;
-    vector<long long> dist;
-    vector<int> pre, pre_id;
-    vector<bool> inq;
-    void init(int n) { g.assign(n, {}); }
-    void add_edge(int u, int v, long long cap, long long cost) {
-        g[u].push_back({v, (int)g[v].size(), cap, cost});
-        g[v].push_back({u, (int)g[u].size() - 1, 0, -cost});
-    }
-bool spfa(int s, int t) {
-       dist.assign(g.size(), 1e18);
-       inq.assign(g.size(), false);
-       pre.assign(g.size(), -1);
-       pre_id.assign(g.size(), -1);
-       queue<int> q;
-       dist[s] = 0; q.push(s); inq[s] = true;
-       while (!q.empty()) {
-           int u = q.front(); q.pop(); inq[u] = false;
-           for (int i = 0; i < (int)g[u].size(); ++i) {
-               auto &e = g[u][i];
-               if (e.cap > 0 && dist[e.to] > dist[u] + e.cost) {
-                   dist[e.to] = dist[u] + e.cost;
-                   pre[e.to] = u;
-                   pre_id[e.to] = i;
-                   if (!inq[e.to]) {
-                       q.push(e.to);
-                       inq[e.to] = true;
-                   }
-               }
-           }
-       }
-       return dist[t] != 1e18;
-   }
-pair<long long, long long> min_cost_flow(int s, int t) {
-        long long flow = 0, cost = 0;
-        while (spfa(s, t)) {
-            long long f = 1e18;
-            for (int v = t; v != s; v = pre[v])
-                f = min(f, g[pre[v]][pre_id[v]].cap);
-            flow += f;
-            for (int v = t; v != s; v = pre[v]) {
-                auto &e = g[pre[v]][pre_id[v]];
-                e.cap -= f;
-                g[v][e.rev].cap += f;
-                cost += f * e.cost;
-            }
-        }
-        return {flow, cost};
-    }
-};
-如果费用非负且追求稳定复杂度，可用 Dijkstra + 势能 代替 SPFA。
-```
 = #text("开区间二分(l,r)")
 ```cpp
 它的核心思想可以总结为“红蓝染色法”（维护不变量）。
@@ -1872,13 +2056,7 @@ if (check(mid) == true) {
 }
 4. 退出循环时的特点（重点！）：退出时，必定有 l + 1 == r（即 l 和 r 紧紧挨在一起）。因为 l 始终是不满足条件的最后一个位置，r 始终是满足条件的第一个位置。所以，你要找的目标答案就是 r！ 根本不用额外去推导什么边界。
 ```
-= #text("线性求逆元")
-```cpp
-inv_num[1] = 1;
-for (int i = 2; i < limit; i++) {
-    inv_num[i] = (mod - mod / i) * inv_num[mod % i] % mod;
-}
-```
+
 = #text("数位dp")
 ```cpp
 string S;  // 上限
