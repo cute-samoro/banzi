@@ -1298,6 +1298,8 @@ void factorize(u64 n, std::vector<u64>& factors) {
     factorize(n / factor, factors);
 }
 ```
+== #text("常见数论函数的迪利克雷卷积(待施工)")
+== #text("莫比乌斯反演的两种形式(待施工)")
 = #text("图论")
 == #text("dsu on tree")
 ```cpp
@@ -1554,6 +1556,89 @@ struct BoundFlow {
 若 in[v] > 0，连 S -> v 容量 in[v]；若 in[v] < 0，连 v -> T 容量 -in[v]。
 原边连容量 r - l。
 跑最大流，若从 S 出发的所有边满流，则有解
+```
+
+== #text("费用流")
+```cpp
+using i64 = long long;
+const i64 inf = 1e18;
+struct edge{
+    int t;
+    int c;
+    int v;
+};
+vector<edge> e; 
+vector<vector<int>> graph;
+void add(int s, int t, int val) {
+    graph[s].emplace_back(e.size());
+    e.push_back({t, 1, val});
+    graph[t].emplace_back(e.size());
+    e.push_back({s, 0, -val});
+    return ;
+}
+vector<i64> d;
+vector<int> p, inq;
+
+bool spfa(int s, int t) {
+    int n = graph.size();
+
+    d.assign(n, inf);
+    p.assign(n, -1);
+    inq.assign(n, 0);
+
+    queue<int> q;
+    d[s] = 0;
+    q.push(s);
+    inq[s] = 1;
+
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        inq[u] = 0;
+
+        for (int id : graph[u]) {
+            auto &[to, cap, val] = e[id];
+
+            if (cap && d[to] > d[u] + val) {
+                d[to] = d[u] + val;
+                p[to] = id;
+
+                if (!inq[to]) {
+                    inq[to] = 1;
+                    q.push(to);
+                }
+            }
+        }
+    }
+
+    return d[t] != inf;
+}
+
+pair<int, i64> mcf(int s, int t, int lim) {
+    int flow = 0;
+    i64 cost = 0;
+
+    while (flow < lim && spfa(s, t)) {
+        int f = lim - flow;
+
+        // e[p[u] ^ 1].t 是 u 的前驱节点
+        for (int u = t; u != s; u = e[p[u] ^ 1].t) {
+            f = min(f, e[p[u]].c);
+        }
+
+        for (int u = t; u != s; u = e[p[u] ^ 1].t) {
+            int id = p[u];
+
+            e[id].c -= f;
+            e[id ^ 1].c += f;
+        }
+
+        flow += f;
+        cost += (i64)f * d[t];
+    }
+
+    return {flow, cost};
+}
 ```
 = #text("数据结构")
 == #text("可删除并查集")
@@ -2008,6 +2093,9 @@ namespace std {
 inline void hash_combine(size_t& seed, size_t hash) {
     seed ^= hash + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
 }
+/*防卡unordered_map教学https://codeforces.com/blog/entry/62393
+unordered_map<long long, int, custom_hash> safe_map;
+*/
 ```
 
 
@@ -2372,6 +2460,28 @@ Big operator*(const Big &b) const {
     主要是文字说明一些注意点，比如左右区间为[l,m]和[m,r]，tl<m，走左，tr>m走右，点是没有长度的，长度由两个点相减得到，叶子节点r-l==1，r-l>=1才算有效区间，在一些区间问题常用这个写法，比如线段长度
 ```
 = #text("杂项")
+== #text("一些常见的__builin_函数") 
+```cpp
+__builtin_popcount(x)	二进制中 1 的个数	popcount(13) → 3，因为 1101
+__builtin_ctz(x)	末尾连续 0 的个数	ctz(12) → 2，因为 1100
+__builtin_clz(x)	开头连续 0 的个数	以 unsigned int 位数计算
+__builtin_parity(x)	1 的个数是否为奇数	奇数返回 1，偶数返回 0
+__builtin_ffs(x)	最低位 1 的位置	从 1 开始编号；x=0 返回 0
+// unsigned int
+__builtin_popcount(x);
+__builtin_ctz(x);
+__builtin_clz(x);
+
+// unsigned long
+__builtin_popcountl(x);
+__builtin_ctzl(x);
+__builtin_clzl(x);
+
+// unsigned long long
+__builtin_popcountll(x);
+__builtin_ctzll(x);
+__builtin_clzll(x);
+```
 
 == #text("优先队列自定义结构体比较")
 ```cpp
@@ -2544,7 +2654,46 @@ bool floydCycle(int start, Next next, int nullNode = -1) {
     return false;
 }
 ```
+```cpp
+//求环入口+长度
+struct CycleInfo {
+    bool hasCycle;
+    int entry;   // 环入口
+    int length;  // 环长度
+};
 
+template <class Next>
+CycleInfo findCycle(int start, Next next, int nullNode = -1) {
+    int slow = start, fast = start;
+
+    // 1. 判断是否有环
+    do {
+        if (fast == nullNode || next(fast) == nullNode) {
+            return {false, nullNode, 0};
+        }
+        slow = next(slow);
+        fast = next(next(fast));
+    } while (slow != fast);
+
+    // 2. 求环入口
+    slow = start;
+    while (slow != fast) {
+        slow = next(slow);
+        fast = next(fast);
+    }
+    int entry = slow;
+
+    // 3. 求环长度
+    int length = 1;
+    fast = next(entry);
+    while (fast != entry) {
+        fast = next(fast);
+        ++length;
+    }
+
+    return {true, entry, length};
+}
+```
 == #text("st表上二分")
 ```cpp
 
@@ -2558,6 +2707,15 @@ bool floydCycle(int start, Next next, int nullNode = -1) {
     5. >> 优先级比 & 高
     6.一些并行运算确实要更快
     7.Prüfer序列(造树)
+    8.负数的向上取整不太一样(-x + mod - 1) / mod
+    
+    i64 ceil_div(i64 a, i64 b) {
+        if (a >= 0) return (a + b - 1) / b;
+        return a / b;
+    }
+    9.对于整数随机变量:
+        E[M]=\sum_{x >= 1}\Pr(M >= x) = \sum_{x >= 1} x * p(x) 
+        右边可以化为左边的试试
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
@@ -2573,6 +2731,8 @@ $ "ans" = sum max(0, b_i - b_(i-1)) $
     2.树上选点,如果可以重复的话,对称可能可以产生一些性质,可以尝试平均等方法利用性质
     3.换根问题转化为固定根
     4.贪心题从收益函数的角度去分析
+    5.树的问题可以联系子树大小去考虑,或者有时侯树链剖分/dsu on tree,图可能是染色,度数,连边可能边有选择方向的含义(有向边),或者是一些基础量,像桥之类的,数论+树结合的题目也有(数论(莫反)得出要维护的东西后dsu on tree的做过),图也可以去掉一些边变成树
+    6.每个点度数大等于2,这个图不存在链
 ```
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，isap被特意卡的话常数比dinic大，")
 
