@@ -1735,7 +1735,68 @@ public:
     }
 };
 ```
-
+== #text("关于dsu的一些碎碎念")
+```text
+按秩合并还是有点必要的,小的合并到大的才能保证正确的复杂度
+```
+== #text("带权并查集")
+```cpp
+/*
+题目如下:
+有 n 个电脑配件，质量分别为 x_1,x_2,…,x_n。
+x_i+x_j=2c.
+对于每次测量结果，你需要判断它此时是否有可能是正确的。
+也就是说，如果存在一组实数 x_1,x_2,…,x_n 同时满足当前测量结果和之前被认为正确的全部测量结果，则认为该结果正确。被认为错误的测量结果不会对之后的询问产生任何影响。注意，因为电脑配件可能由奇异物质组成，所以 x_i 可能是负的。
+i,j,c = a_i + a_j = 2 * c
+*/
+struct dsu {
+    vector<i64> fa, sgn, d, siz, fixed, val;
+    dsu(int n) : fa(n + 1), sgn(n + 1, 1), d(n + 1), siz(n + 1, 1), fixed(n + 1, 0), val(n + 1) {
+        iota(fa.begin(), fa.end(), 0);
+    }//sgn,fixed,d和val是题目维护的量 
+    int find(int x) {
+        if (x == fa[x]) return x;
+        int oldfa = fa[x], newfa = find(oldfa);
+        if (oldfa == newfa) return oldfa;
+        d[x] += sgn[x] * d[oldfa];
+        sgn[x] *= sgn[oldfa];
+        fa[x] = newfa;
+        return newfa;
+    }
+    bool solve(int x, int y, int c) {
+        int fax = find(x), fay = find(y);
+        if (fax == fay) {
+            int newsgn = sgn[x] + sgn[y];
+            if (newsgn == 0)  return d[x] + d[y] == 2 * c;
+            i64 newval = (2 * c - d[x] - d[y]) / newsgn;
+            if (!fixed[fax]) {
+                fixed[fax] = 1;
+                val[fax] = newval;
+                return 1;
+            }
+            return val[fax] == newval;
+        }
+        if (siz[fax] > siz[fay]) {
+            swap(fax, fay);
+            swap(x, y);
+        }
+        if (fixed[fax] && fixed[fay]) 
+            return sgn[x] * val[fax] + 
+            sgn[y] * val[fay] + 
+            d[x] + d[y] == 2 * c;
+        fa[fax] = fay;
+        siz[fay] += siz[fax];
+        int oldsgn = sgn[x];
+        sgn[fax] = -oldsgn * sgn[y];
+        d[fax] = oldsgn * (2 * c - d[x] - d[y]);
+        if (fixed[fax] && !fixed[fay]) {
+            fixed[fay] = 1;
+            val[fay] = sgn[fax] * (val[fax] - d[fax]);
+        }
+        return 1;
+    }
+};
+```
 = #text("马拉车")
 
 ```cpp
@@ -2147,6 +2208,50 @@ if (check(mid) == true) {
 
 = #text("数位dp")
 ```cpp
+// 递归版,看个大概,具体题目具体分析，下面这个是给定上限，求满足a,b,c a^b^c == 0 && a+c == 2*b的a,b,c个数
+vector<i64> pre(64);
+i64 memory[64][2][3][2];
+i64 n;
+
+i64 pre_dp(int bit, int choice, int limit, int tight, i64 upper_n) {
+    int n_bit = (upper_n >> bit) & 1;
+
+    if (tight && choice > n_bit) return 0;
+
+    auto &p = memory[bit][choice][limit][tight];
+    if (p != -1) return p;
+
+    if (bit == 0) {
+        return p = (limit != 1);
+    }
+
+    int next_tight = tight && (choice == n_bit);
+    if (limit == 1) {
+        return p = pre_dp(
+            bit - 1, 1, 2, next_tight, upper_n
+        );
+    }
+
+    if (limit == 2) {
+        p = pre_dp(
+                bit - 1, 1, 1, next_tight, upper_n
+            )
+          + pre_dp(
+                bit - 1, 0, 0, next_tight, upper_n
+            );
+
+        return p %= MOD;
+    }
+    p = pre_dp(
+            bit - 1, 1, 0, next_tight, upper_n
+        )
+      + pre_dp(
+            bit - 1, 0, 0, next_tight, upper_n
+        );
+
+    return p %= MOD;
+}
+//递推版,上下不是同一题
 string S;  // 上限
 int n = S.size();
 // dp[pos][state][tight]
@@ -2716,13 +2821,22 @@ CycleInfo findCycle(int start, Next next, int nullNode = -1) {
     9.对于整数随机变量:
         E[M]=\sum_{x >= 1}\Pr(M >= x) = \sum_{x >= 1} x * p(x) 
         右边可以化为左边的试试
+    10.vector.assign的复杂度是o(n),vector.clear()会把size清空导致访问越界
+    11.有时候二分可以固定次数,比如区间为浮点数,可以固定一个二分次数,效果更好
+    12.树状数组加入0下标会死循环
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
 由此可以得到：
 $ "ans" = sum max(0, b_i - b_(i-1)) $
 
-
+== #text("碎碎念")
+```text
+1.若
+    a[x1]＝...
+    b[x2]=a[x3]+...
+  最好开新变量存旧值a，可以避免一些不好发现的错误
+```
 == #text("一些思维(废话)")
 ```text
     1.由少到多,模拟过程找性质
