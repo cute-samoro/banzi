@@ -2565,6 +2565,37 @@ Big operator*(const Big &b) const {
     主要是文字说明一些注意点，比如左右区间为[l,m]和[m,r]，tl<m，走左，tr>m走右，点是没有长度的，长度由两个点相减得到，叶子节点r-l==1，r-l>=1才算有效区间，在一些区间问题常用这个写法，比如线段长度
 ```
 = #text("杂项")
+== #text("对拍")
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+int main()
+{
+    while (1) //一直循环，直到找到不一样的数据
+    {
+        system("data.exe > in.txt");
+        system("baoli.exe < in.txt > baoli.txt");
+        system("std.exe < in.txt > std.txt");
+        if (system("fc std.txt baoli.txt")) //当 fc 返回 1 时，说明这时数据不一样
+            break;                          //不一样就跳出循环
+    }
+    return 0;
+}
+//造数据
+#include <bits/stdc++.h>
+#include <sys/timeb.h>
+int main()
+{
+    struct _timeb T;
+    _ftime(&T);
+    srand(T.millitm);
+
+    // freopen("in.txt", "w", stdout); //生成 使两份基本代码 将要读入的数据
+    int a = rand(), b = rand();
+    printf("%d %d\n", a, b);
+}
+
+```
 == #text("一些常见的__builin_函数") 
 ```cpp
 __builtin_popcount(x)	二进制中 1 的个数	popcount(13) → 3，因为 1101
@@ -2824,6 +2855,10 @@ CycleInfo findCycle(int start, Next next, int nullNode = -1) {
     10.vector.assign的复杂度是o(n),vector.clear()会把size清空导致访问越界
     11.有时候二分可以固定次数,比如区间为浮点数,可以固定一个二分次数,效果更好
     12.树状数组加入0下标会死循环
+    13.floyd判环的快慢指针,一快一慢的技巧很常见,比如可以差一来求相邻的差
+    14.move的移动赋值效率比简单复制要高 <utility>
+        比如 cnt = std::move(next_cnt); 把一整个容器赋给cnt,比cnt = next_cnt快,注意这样之后不要访问next_cnt的内容了,移动后里面的值可能会有改变
+    15.next函数,获取下一个位置的迭代器, 比如 current = std::next(pre); 直观+好用 <iterator>
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
