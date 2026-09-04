@@ -5,25 +5,25 @@
   number-align: center + bottom,
 )
 
-#set text(size: 9pt)
+#set text(size: 11pt)
 #set par(leading: 0.52em)
 #set heading(numbering: "1.")
 #set raw(theme: auto, tab-size: 2)
 
 #show raw: set text(
   font: "Cascadia Code",
-  size: 0.92em,
+  size: 1.05em,
   fill: rgb("#111827"),
 )
 
 #show raw.where(block: false): box.with(
-  fill: rgb("#f3f4f6"),
+  fill: none,
   inset: (x: 0.35em, y: 0.05em),
   radius: 3pt,
 )
 
 #show raw.where(block: true): block.with(
-  fill: rgb("#f8fafc"),
+  fill: none,
   stroke: 0.45pt + rgb("#e5e7eb"),
   inset: (x: 10pt, y: 8pt),
   radius: 6pt,
