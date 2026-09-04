@@ -1736,8 +1736,27 @@ public:
 };
 ```
 == #text("关于dsu的一些碎碎念")
-```text
-按秩合并还是有点必要的,小的合并到大的才能保证正确的复杂度
+```cpp
+//按秩合并还是有点必要的,小的合并到大的才能保证正确的复杂度
+struct dsu{
+    vector<int> fa;
+    vector<int> siz;
+    dsu(int n) : fa(n + 1), siz(n + 1, 1) {
+        iota(fa.begin(), fa.end(), 0);
+    }
+    int find(int x) {
+        if (x != fa[x]) return fa[x] = find(fa[x]);
+        return fa[x];
+    }
+    bool unit(int x, int y) {
+        int fx = find(x), fy = find(y);
+        if (fx == fy) return 0;
+        if (siz[fx] > siz[fy]) swap(fx, fy);
+        fa[fx] = fy;
+        siz[fy] += siz[fx];
+        return 1;
+    }
+};
 ```
 == #text("带权并查集")
 ```cpp
@@ -2859,6 +2878,7 @@ CycleInfo findCycle(int start, Next next, int nullNode = -1) {
     14.move的移动赋值效率比简单复制要高 <utility>
         比如 cnt = std::move(next_cnt); 把一整个容器赋给cnt,比cnt = next_cnt快,注意这样之后不要访问next_cnt的内容了,移动后里面的值可能会有改变
     15.next函数,获取下一个位置的迭代器, 比如 current = std::next(pre); 直观+好用 <iterator>
+    16.dsu判环
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
