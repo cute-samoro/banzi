@@ -12,7 +12,7 @@
 
 #show raw: set text(
   font: "Cascadia Code",
-  size: 1.05em,
+  size: 1.3em,
   fill: rgb("#111827"),
 )
 
@@ -2023,7 +2023,126 @@ int main() {
     cout << lb.queryMax() << "\n";
     return 0;}
 ```
+== #text("异或线性基典题") 
+```cpp
+n个二元组<A,B>,求一个非空子集使得A的异或和不为0且B的和最大
+solution:B从大到小排列,然后加入后如果异或为0则不取这组,根据(a^b=c && a^c=b)和贪心可证明正确性
 
+/*
+线性基+树上rmq
+题目:速求树上任意两点间的路径上的点值构成的子集的异或最大/最小值
+*/
+#include<iostream>
+#include<vector>
+using namespace std;
+using i64 = long long;
+struct linearbasis{
+    vector<i64> basis;
+    linearbasis(int n) : basis(n + 1){}
+    void insert(i64 x) {
+        for (int i = 63; i >= 0; i--) {
+            if ((x >> i) & 1) {
+                if (basis[i]) x ^= basis[i];
+                else return basis[i] = x, void();
+            }
+        }
+        return ;
+    }
+    linearbasis comb(linearbasis a, linearbasis b) {
+        for (int i = 63; i >= 0; i--) {
+            if (b.basis[i]) a.insert(b.basis[i]);
+        }
+        return a;
+    }
+};
+void solve() {
+    int n, q;
+    cin >> n >> q;
+    vector<i64> g(n + 1);
+    int len = 0;
+    while((1 << len) <= n) len++;
+    for (int i = 1; i <= n; i++) cin >> g[i];
+    vector<vector<int>> e(n + 1);
+    for (int i = 0, u, v; i < n - 1; i++) {
+        cin >> u >> v;
+        e[u].push_back(v);
+        e[v].push_back(u);
+    }
+    vector<vector<linearbasis>> rmq(len, vector<linearbasis>(n + 1, linearbasis(64)));
+    vector<vector<int>> lca(len, vector<int>(n + 1));
+    vector<int> depth(n + 1, 1);
+    auto dfs = [&](auto &&self, int p, int fa) ->void{
+        rmq[0][p].insert(g[p]);
+        for (auto i : e[p]) {
+            if (i == fa) continue;
+            lca[0][i] = p;
+            depth[i] = depth[p] + 1;
+            self(self, i, p);
+        }
+    };
+    dfs(dfs, 1, 0);
+    for (int i = 1; i < len; i++) {
+        for (int j = 1; j <= n; j++) {
+            lca[i][j] = lca[i - 1][lca[i - 1][j]];
+        }
+    }
+    for (int i = 1; i < len; i++) {
+        for (int j = 1; j <= n; j++) {
+            rmq[i][j] = rmq[i][j].comb(rmq[i - 1][j], rmq[i - 1][lca[i - 1][j]]);
+        }
+    }
+    auto cal_lca = [&](int x, int y){
+        if (depth[x] < depth[y]) swap(x, y);
+        int dis = depth[x] - depth[y];
+        for (int i = len; i >= 0; i--) {
+            if ((dis >> i) & 1) x = lca[i][x];
+        }
+        if (x == y) return x;
+        for (int i = len - 1; i >= 0; i--) {
+            if (lca[i][x] != lca[i][y]) {
+                x = lca[i][x];
+                y = lca[i][y];
+            }
+        }
+        return lca[0][x];
+    };
+    for (int i = 0, x, y; i < q; i++) {
+        cin >> x >> y;
+        int _lca = cal_lca(x, y);
+        //cout << _lca << '\n';
+        linearbasis lb(64);
+        lb.insert(g[_lca]);
+        int dis = depth[x] - depth[_lca];
+        for (int j = len; j >= 0; j--) {
+            if ((dis >> j) & 1) {
+                lb = lb.comb(lb, rmq[j][x]);
+                x = lca[j][x];
+            }
+        }
+        //cout << dis << ' ' << x << '\n';
+        dis = depth[y] - depth[_lca];
+        for (int j = len; j >= 0; j--) {
+            if ((dis >> j) & 1) {
+                lb = lb.comb(lb, rmq[j][y]);
+                y = lca[j][y];
+            }
+        }
+        //cout << dis << ' ' << x << '\n';
+        i64 ans = 0;
+        for (int j = 63; j >= 0; j--) {
+            ans = max(ans, ans ^ lb.basis[j]);
+        }
+        cout << ans << '\n';
+    }
+    return ;
+}
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    solve();
+    return 0;
+}
+```
 = #text("强连通分量-tarjan")
 
 ```cpp
