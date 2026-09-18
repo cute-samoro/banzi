@@ -1816,6 +1816,105 @@ struct dsu {
     }
 };
 ```
+
+== #text("AC自动机")
+```cpp
+#include <array>
+#include <iostream>
+#include <queue>
+#include <string>
+#include <vector>
+using namespace std;
+
+struct AhoCorasick {
+    static constexpr int SIGMA = 26;
+    struct Node {
+        array<int, SIGMA> go{};
+        int fail = 0;
+        long long visit = 0;
+    };
+
+    vector<Node> tr;
+    AhoCorasick() { tr.emplace_back(); } // 0 为根
+
+    int insert(const string &s) {
+        int u = 0;
+        for (char ch : s) {
+            int c = ch - 'a';
+            if (!tr[u].go[c]) {
+                tr[u].go[c] = (int)tr.size();
+                tr.emplace_back();
+            }
+            u = tr[u].go[c];
+        }
+        return u;
+    }
+
+    vector<int> build() {
+        queue<int> q;
+        vector<int> order;
+        order.reserve(tr.size());
+        for (int c = 0; c < SIGMA; ++c) {
+            int v = tr[0].go[c];
+            if (v) q.push(v);
+        }
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            order.push_back(u);
+            for (int c = 0; c < SIGMA; ++c) {
+                int &v = tr[u].go[c];
+                if (v) {
+                    tr[v].fail = tr[tr[u].fail].go[c];
+                    q.push(v);
+                } else {
+                    v = tr[tr[u].fail].go[c];
+                }
+            }
+        }
+        return order;
+    }
+
+    void match(const string &text) {
+        int u = 0;
+        for (char ch : text) {
+            u = tr[u].go[ch - 'a'];
+            ++tr[u].visit;
+        }
+    }
+
+    void collect(const vector<int> &order) {
+        for (int i = (int)order.size() - 1; i >= 0; --i) {
+            int u = order[i];
+            tr[tr[u].fail].visit += tr[u].visit;
+        }
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+    AhoCorasick ac;
+    vector<int> terminal(n);
+    string pattern;
+    for (int i = 0; i < n; ++i) {
+        cin >> pattern;
+        terminal[i] = ac.insert(pattern);
+    }
+    string text;
+    cin >> text;
+
+    vector<int> order = ac.build();
+    ac.match(text);
+    ac.collect(order);
+
+    for (int node : terminal) cout << ac.tr[node].visit << '\n';
+    return 0;
+}
+
+```
 = #text("马拉车")
 
 ```cpp
@@ -3070,6 +3169,7 @@ CycleInfo findCycle(int start, Next next, int nullNode = -1) {
         比如 cnt = std::move(next_cnt); 把一整个容器赋给cnt,比cnt = next_cnt快,注意这样之后不要访问next_cnt的内容了,移动后里面的值可能会有改变
     15.next函数,获取下一个位置的迭代器, 比如 current = std::next(pre); 直观+好用 <iterator>
     16.dsu判环
+    17.ull 会自动截掉运算结果超出 64 位的部分,但不允许移位次数达到或超过64
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
