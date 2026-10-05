@@ -1300,6 +1300,51 @@ void factorize(u64 n, std::vector<u64>& factors) {
 ```
 == #text("常见数论函数的迪利克雷卷积(待施工)")
 == #text("莫比乌斯反演的两种形式(待施工)")
+== #text("常见组合公式(待施工)")
+== #text("数论分块(待施工)")
+```cpp
+for (long long l = L; l <= R; ) {
+    long long q = n / l;
+    long long r = min(R, n / q);
+
+    // 处理 [l,r]。
+
+    l = r + 1;
+}
+```
+== #text("求逆元意义下的组合数")
+```cpp
+using int64 = long long;
+const int MOD = 1e9 + 7; // 必须是质数
+const int N = 1e6;       // 最大 n，根据题目修改
+
+int64 fac[N + 1], ifac[N + 1];
+
+int64 qpow(int64 a, int64 b) {
+    int64 res = 1;
+    while (b) {
+        if (b & 1) res = res * a % MOD;
+        a = a * a % MOD;
+        b >>= 1;
+    }
+    return res;
+}
+
+void init() {
+    fac[0] = 1;
+    for (int i = 1; i <= N; i++)
+        fac[i] = fac[i - 1] * i % MOD;
+
+    ifac[N] = qpow(fac[N], MOD - 2); // 费马小定理求逆元
+    for (int i = N; i >= 1; i--)
+        ifac[i - 1] = ifac[i] * i % MOD;
+}
+
+int64 C(int n, int k) {
+    if (k < 0 || k > n) return 0;
+    return fac[n] * ifac[k] % MOD * ifac[n - k] % MOD;
+}
+```
 = #text("图论")
 == #text("dsu on tree")
 ```cpp
@@ -1641,6 +1686,187 @@ pair<int, i64> mcf(int s, int t, int lim) {
 }
 ```
 = #text("数据结构")
+== #text("线段树")
+```cpp
+struct SegTree {
+    using ll = long long;
+    int n;
+    vector<ll> sum, tag;
+
+    // a[1..n] 为初始数组，a[0] 不用
+    SegTree(const vector<ll>& a) {
+        n = (int)a.size() - 1;
+        sum.assign(4 * n + 4, 0);
+        tag.assign(4 * n + 4, 0);
+        build(1, 1, n, a);
+    }
+
+    void pull(int p) {
+        sum[p] = sum[p * 2] + sum[p * 2 + 1];
+    }
+
+    void build(int p, int l, int r, const vector<ll>& a) {
+        if (l == r) {
+            sum[p] = a[l];
+            return;
+        }
+        int m = (l + r) / 2;
+        build(p * 2, l, m, a);
+        build(p * 2 + 1, m + 1, r, a);
+        pull(p);
+    }
+
+    // 当前节点对应的区间整体加 v
+    void apply(int p, int l, int r, ll v) {
+        sum[p] += v * (r - l + 1);
+        tag[p] += v;
+    }
+
+    void push(int p, int l, int r) {
+        if (tag[p] == 0) return;
+        int m = (l + r) / 2;
+        apply(p * 2, l, m, tag[p]);
+        apply(p * 2 + 1, m + 1, r, tag[p]);
+        tag[p] = 0;
+    }
+
+    void add(int p, int l, int r, int L, int R, ll v) {
+        if (L <= l && r <= R) {
+            apply(p, l, r, v);
+            return;
+        }
+        push(p, l, r);
+        int m = (l + r) / 2;
+        if (L <= m) add(p * 2, l, m, L, R, v);
+        if (R > m) add(p * 2 + 1, m + 1, r, L, R, v);
+        pull(p);
+    }
+
+    ll query(int p, int l, int r, int L, int R) {
+        if (L <= l && r <= R) return sum[p];
+        push(p, l, r);
+        int m = (l + r) / 2;
+        ll res = 0;
+        if (L <= m) res += query(p * 2, l, m, L, R);
+        if (R > m) res += query(p * 2 + 1, m + 1, r, L, R);
+        return res;
+    }
+
+    // 对外接口
+    void add(int l, int r, ll v) {
+        add(1, 1, n, l, r, v);
+    }
+
+    ll query(int l, int r) {
+        return query(1, 1, n, l, r);
+    }
+};
+```
+== #text("树状数组")
+```cpp
+struct BIT {
+    using ll = long long;
+    int n;
+    vector<ll> tree;
+
+    BIT(int n) : n(n), tree(n + 1, 0) {}
+
+    // a[x] += v，注意 x 不能为 0
+    void add(int x, ll v) {
+        for (; x <= n; x += x & -x)
+            tree[x] += v;
+    }
+
+    // 前缀和 a[1] + ... + a[x]，sum(0) = 0
+    ll sum(int x) {
+        ll res = 0;
+        for (; x > 0; x -= x & -x)
+            res += tree[x];
+        return res;
+    }
+
+    ll query(int l, int r) {
+        return sum(r) - sum(l - 1);
+    }
+};
+```
+== #text("bitset")
+```cpp
+const int MAXV = 100000; // 最大总和
+
+bitset<MAXV + 1> dp;
+
+int main() {
+    dp[0] = 1; // 和为 0 可以达到
+
+    vector<int> a = {3, 5, 7};
+
+    for (int x : a) {
+        dp |= dp << x;
+    }
+
+    cout << dp[10] << '\n'; // 是否能凑出 10
+    cout << dp.count() << '\n'; // 一共能凑出多少种不同的和
+
+    return 0;
+}
+```
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+constexpr int N = 100000;
+// 设 B = ceil(N / 64)，以下为常见 64 位实现的复杂度
+
+int main() {
+    bitset<N> b, other; // 初始化为全 0，O(B)
+    int i = 3, k = 2;
+
+    bool x = b[i];     // 读取第 i 位，O(1)
+    b[i] = 1;          // 修改第 i 位，O(1)
+    b.test(i);         // 读取第 i 位，带越界检查，O(1)
+
+    b.set(i);          // 第 i 位设为 1，O(1)
+    b.reset(i);        // 第 i 位设为 0，O(1)
+    b.flip(i);         // 第 i 位取反，O(1)
+
+    b.set();           // 全部设为 1，O(B)
+    b.reset();         // 全部设为 0，O(B)
+    b.flip();          // 全部取反，O(B)
+
+    b.count();         // 1 的个数，O(B)
+    b.any();           // 是否至少有一个 1，最坏 O(B)
+    b.none();          // 是否全为 0，最坏 O(B)
+    b.all();           // 是否全为 1，最坏 O(B)
+
+    auto c = b << k;    // 左移 k 位，低位补 0，不修改 b，O(B)
+    c = b >> k;        // 右移 k 位，高位补 0，不修改 b，O(B)
+    b <<= k;           // 原地左移 k 位，O(B)
+    b >>= k;           // 原地右移 k 位，O(B)
+
+    c = b & other;     // 按位与，O(B)
+    c = b | other;     // 按位或，O(B)
+    c = b ^ other;     // 按位异或，O(B)
+    c = ~b;            // 按位取反，不修改 b，O(B)
+
+    b &= other;        // 原地按位与，O(B)
+    b |= other;        // 原地按位或，O(B)
+    b ^= other;        // 原地按位异或，O(B)
+
+    bool eq = (b == other); // 是否相等，最坏 O(B)
+    b = other;             // 复制另一个 bitset，O(B)
+
+    string s = b.to_string(); // 转成字符串，高位在左，O(N)
+
+    return 0;
+}
+
+// 注意：
+// 1. N 必须是编译期常量，下标范围为 [0, N - 1]。
+// 2. 移位丢弃超出范围的位；k >= N 时结果全为 0。
+// 3. 空间约 N / 8 字节，实际按机器字对齐。
+// 4. 上述复杂度是常见实现的估算，并非标准统一保证。
+```
 == #text("可删除并查集")
 ```cpp
 #include <iostream>
@@ -2797,11 +3023,51 @@ Big operator*(const Big &b) const {
     }
 };
 ```
-= #text("闭区间线段树")
+= #text("半开半闭区间线段树")
 ```cpp
     主要是文字说明一些注意点，比如左右区间为[l,m]和[m,r]，tl<m，走左，tr>m走右，点是没有长度的，长度由两个点相减得到，叶子节点r-l==1，r-l>=1才算有效区间，在一些区间问题常用这个写法，比如线段长度
 ```
 = #text("杂项")
+
+== #text("对区间离线操作的差分处理")
+```cpp
+using ll = long long;
+
+vector<pair<ll, ll>> events;
+events.reserve(2 * m + 2);
+
+// 保证 [1,n] 全部被统计，包括覆盖次数为 0 的部分。
+events.push_back({1, 0});
+events.push_back({n + 1, 0});
+
+for (int i = 0; i < m; ++i) {
+    ll l, r;
+    cin >> l >> r;
+    events.push_back({l, 1});
+    events.push_back({r + 1, -1});
+}
+
+sort(events.begin(), events.end());
+
+ll active = 0;
+
+for (size_t i = 0; i < events.size(); ) {
+    ll L = events[i].first;
+
+    // 同一个位置的变化一起处理。
+    while (i < events.size() && events[i].first == L) {
+        active += events[i].second;
+        ++i;
+    }
+
+    if (i == events.size()) break;
+
+    ll R = events[i].first - 1;
+
+    // 得到一段：[L,R]，每个位置的覆盖次数都是 active。
+    // 在这里处理这一段。
+}
+```
 == #text("对拍")
 ```cpp
 #include<bits/stdc++.h>
@@ -3139,9 +3405,21 @@ CycleInfo findCycle(int start, Next next, int nullNode = -1) {
     return {true, entry, length};
 }
 ```
-== #text("st表上二分")
+== #text("st表上二分(待施工)")
 ```cpp
 
+```
+== #text("向上取整与向下取整")
+```cpp
+auto floor_div = [](i64 x, i64 y) -> i64 {
+    i64 q = x / y, r = x % y;
+    return q - (r != 0 && ((r > 0) != (y > 0)));
+};
+
+auto ceil_div = [](i64 x, i64 y) -> i64 {
+    i64 q = x / y, r = x % y;
+    return q + (r != 0 && ((r > 0) == (y > 0)));
+};
 ```
 == #text("随手记")
 ```text
@@ -3162,14 +3440,19 @@ CycleInfo findCycle(int start, Next next, int nullNode = -1) {
         E[M]=\sum_{x >= 1}\Pr(M >= x) = \sum_{x >= 1} x * p(x) 
         右边可以化为左边的试试
     10.vector.assign的复杂度是o(n),vector.clear()会把size清空导致访问越界
-    11.有时候二分可以固定次数,比如区间为浮点数,可以固定一个二分次数,效果更好
-    12.树状数组加入0下标会死循环
-    13.floyd判环的快慢指针,一快一慢的技巧很常见,比如可以差一来求相邻的差
-    14.move的移动赋值效率比简单复制要高 <utility>
+    11.树状数组加入0下标会死循环
+    12.floyd判环的快慢指针,一快一慢的技巧很常见,比如可以差一来求相邻的差
+    13.move的移动赋值效率比简单复制要高 <utility>
         比如 cnt = std::move(next_cnt); 把一整个容器赋给cnt,比cnt = next_cnt快,注意这样之后不要访问next_cnt的内容了,移动后里面的值可能会有改变
-    15.next函数,获取下一个位置的迭代器, 比如 current = std::next(pre); 直观+好用 <iterator>
-    16.dsu判环
-    17.ull 会自动截掉运算结果超出 64 位的部分,但不允许移位次数达到或超过64
+    14.next函数,获取下一个位置的迭代器, 比如 current = std::next(pre); 直观+好用 <iterator>
+    15.dsu判环
+    16.ull 会自动截掉运算结果超出 64 位的部分,但不允许移位次数达到或超过64(左移的位数>=字长或移负数,在C中是未定义行为,不要依赖结果)
+    17.浮点数二分固定次数效果比r-l>=eps更好,具体次数为 L/2^k <= eps ,即得到 k>= [log2(L/eps)](向上取整),通常多算几次,如果出现mid == l or mid == r,提前break
+    18.eps 不是浮点题的必需品,更不能在所有比较里统一加一个 eps,别瞎用,可以了解下浮点数的存储方式
+    19.auto x = lower_bound(c_set.begin(), c_set.end(), i);
+        对 multiset 使用通用的 std::lower_bound,时间复杂度是(O(n))，不是 (O(log n))
+        虽然比较次数只有 (O(log n))，但 multiset 的迭代器不能随机跳转，寻找中点需要逐步移动，总共会移动 (O(n)) 次。
+        用multiset的成员函数即可,auto x = c_set.lower_bound(i); (O(log n))
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
