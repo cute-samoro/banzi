@@ -11,7 +11,7 @@
 #set raw(theme: auto, tab-size: 2)
 
 #show raw: set text(
-  font: "Cascadia Code",
+  font: ("Libertinus Serif", "KaiTi"),
   size: 1.3em,
   fill: rgb("#111827"),
 )
@@ -36,6 +36,7 @@
 #outline(depth: 2)
 #pagebreak()
 #set page(columns: 2)
+
 
 = #text("多项式与生成函数")
 == #text("NTT")
@@ -219,7 +220,15 @@ int main() {
 }   
 ```
 = #text("计算几何")
-
+== #text("函数")
+```cpp
+hypotl(x, y) ->sqrt(x * x + y * y)
+acosl(ld) asinl(ld) atanl(ld) atan2l(y, x) fmodl(x, mod) 
+pi = acosl(-1.0L)
+/*约束到[0,2*pi]*/
+i = fmodl(i, 2 * pi);
+if (i < 0) i += 2 * pi;
+```
 == #text("距离的转换")
 
 $abs(x_1-x_2)+abs(y_1-y_2) = max(abs((x_1+y_1)-(x_2+y_2)),abs((x_1-y_1)-(x_2-y_2)))$
@@ -1685,6 +1694,169 @@ pair<int, i64> mcf(int s, int t, int lim) {
     return {flow, cost};
 }
 ```
+== #text("点分治")
+```cpp
+#include <algorithm>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+// 点分治示例：统计距离 <= K 的无序点对 (u, v)，u != v。
+// 单组输入：n K，随后 n-1 行 u v w。
+// 1 <= n <= 200000，0 <= w <= 1e9，0 <= K <= 1e18。
+// 时间 O(n log^2 n)，空间 O(n)。配套讲解见同目录的 讲解.md。
+class CentroidDecomposition {
+    using ll = long long;
+
+    struct Edge {
+        int to;
+        ll weight;
+    };
+
+    struct State {
+        int node, parent;
+        ll distance;
+    };
+
+    vector<vector<Edge>> graph;
+    vector<int> subtreeSize, parent;
+    vector<bool> removed;
+    ll limit;
+    ll answer = 0;
+
+    int findCentroid(int entry) {
+        // order 保证父亲先于孩子出现；倒序即可自底向上算子树大小。
+        // 使用迭代遍历，避免原树是一条长链时 DFS 爆栈。
+        vector<int> order{entry};
+        parent[entry] = 0;
+        for (int i = 0; i < static_cast<int>(order.size()); ++i) {
+            int u = order[i];
+            for (const auto& e : graph[u]) {
+                int v = e.to;
+                if (removed[v] || v == parent[u]) continue;
+                parent[v] = u;
+                order.push_back(v);
+            }
+        }
+
+        int total = static_cast<int>(order.size());
+        int centroid = entry;
+        int best = total;
+        for (int i = total - 1; i >= 0; --i) {
+            int u = order[i];
+            subtreeSize[u] = 1;
+            int largest = 0;
+            for (const auto& e : graph[u]) {
+                int v = e.to;
+                if (removed[v] || v == parent[u]) continue;
+                subtreeSize[u] += subtreeSize[v];
+                largest = max(largest, subtreeSize[v]);
+            }
+            // 删除 u 后，父亲方向的连通块也必须考虑。
+            largest = max(largest, total - subtreeSize[u]);
+            if (largest < best) {
+                best = largest;
+                centroid = u;
+            }
+        }
+        return centroid;
+    }
+
+    vector<ll> collectDistances(int start, int from, ll firstDistance) const {
+        vector<ll> distances;
+        vector<State> stack{{start, from, firstDistance}};
+        while (!stack.empty()) {
+            State current = stack.back();
+            stack.pop_back();
+            distances.push_back(current.distance);
+            for (const auto& e : graph[current.node]) {
+                if (removed[e.to] || e.to == current.parent) continue;
+                stack.push_back({e.to, current.node, current.distance + e.weight});
+            }
+        }
+        return distances;
+    }
+
+    // F(a)：列表中下标 i < j 且 a[i] + a[j] <= K 的数对数。
+    // 相同距离仍代表不同节点，不能去重。此函数会原地排序。
+    ll countPairs(vector<ll>& distances) const {
+        sort(distances.begin(), distances.end());
+        int left = 0;
+        int right = static_cast<int>(distances.size()) - 1;
+        ll result = 0;
+        while (left < right) {
+            if (distances[left] + distances[right] <= limit) {
+                result += right - left;
+                ++left;
+            } else {
+                --right;
+            }
+        }
+        return result;
+    }
+
+    ll countThrough(int centroid) const {
+        vector<ll> all{0};  // 0 代表重心，统计以重心为端点的路径。
+        ll result = 0;
+        for (const auto& e : graph[centroid]) {
+            if (removed[e.to]) continue;
+            vector<ll> distances = collectDistances(e.to, centroid, e.weight);
+            // 减去同分支：仍按“到当前重心的距离和”计算。
+            result -= countPairs(distances);
+            all.insert(all.end(), distances.begin(), distances.end());
+        }
+        result += countPairs(all);
+        return result;
+    }
+
+    void decompose(int entry) {
+        int centroid = findCentroid(entry);
+        removed[centroid] = true;
+        answer += countThrough(centroid);
+        // countThrough 已返回，临时距离列表不会留在递归栈中。
+        for (const auto& e : graph[centroid]) {
+            if (!removed[e.to]) decompose(e.to);
+        }
+    }
+
+public:
+    CentroidDecomposition(int n, ll k)
+        : graph(n + 1), subtreeSize(n + 1), parent(n + 1),
+          removed(n + 1, false), limit(k) {}
+
+    void addEdge(int u, int v, ll weight) {
+        graph[u].push_back({v, weight});
+        graph[v].push_back({u, weight});
+    }
+
+    // 建完树后调用；重复调用时重置分治状态。
+    ll solve() {
+        fill(removed.begin(), removed.end(), false);
+        answer = 0;
+        decompose(1);
+        return answer;
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    long long k;
+    if (!(cin >> n >> k)) return 0;
+    CentroidDecomposition solver(n, k);
+    for (int i = 1; i < n; ++i) {
+        int u, v;
+        long long w;
+        cin >> u >> v >> w;
+        solver.addEdge(u, v, w);
+    }
+    cout << solver.solve() << '\n';
+    return 0;
+}
+
+```
 = #text("数据结构")
 == #text("线段树")
 ```cpp
@@ -2137,6 +2309,225 @@ int main() {
     ac.collect(order);
 
     for (int node : terminal) cout << ac.tr[node].visit << '\n';
+    return 0;
+}
+
+```
+
+== #text("笛卡尔树(区间最值,区间贡献)")
+```cpp
+//代码为小根笛卡尔树
+#include <bits/stdc++.h>
+using namespace std;
+
+struct CartesianTree {
+    int n, root;
+    vector<int> lc, rc, parent;
+
+    // a[1..n] 为原数组；即使 n=0，也要保留 a[0]。
+    explicit CartesianTree(const vector<long long>& a)
+        : n((int)a.size() - 1), root(0),
+          lc(n + 1, 0), rc(n + 1, 0), parent(n + 1, 0) {
+        vector<int> st;
+        st.reserve(n);
+
+        for (int i = 1; i <= n; ++i) {
+            int last = 0;
+            while (!st.empty() && a[st.back()] > a[i]) {
+                last = st.back();
+                st.pop_back();
+            }
+
+            if (!st.empty()) {
+                rc[st.back()] = i;
+                parent[i] = st.back();
+            }
+            if (last != 0) {
+                lc[i] = last;
+                parent[last] = i;
+            }
+            st.push_back(i);
+        }
+
+        if (!st.empty()) root = st.front();
+    }
+
+    // 返回一种孩子先于父亲出现的处理顺序，方便做树形 DP。
+    vector<int> bottom_up_order() const {
+        vector<int> order;
+        order.reserve(n);
+        if (root == 0) return order;
+
+        vector<int> st{root};
+        while (!st.empty()) {
+            int u = st.back();
+            st.pop_back();
+            order.push_back(u);
+            if (lc[u]) st.push_back(lc[u]);
+            if (rc[u]) st.push_back(rc[u]);
+        }
+        reverse(order.begin(), order.end());
+        return order;
+    }
+};
+
+```
+
+== #text("虚树")
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+// 虚树下标为 0..m-1，nodes[i] 才是原树节点编号。
+// nodes 按原树 DFS 序排列，根在下标 0，父亲下标始终小于孩子下标。
+struct VirtualTree {
+    vector<int> nodes;
+    vector<int> parent;        // 虚树父亲下标，根为 -1
+    vector<int> length;        // 父亲到当前节点的原树距离，根为 0
+    vector<char> is_key;       // 是否属于本次询问的关键点集合
+};
+
+class VirtualTreeBuilder {
+    int n, LOG;
+    vector<vector<int>> graph, up;
+    vector<int> depth, tin, tout;
+
+public:
+    explicit VirtualTreeBuilder(int size) : n(size), LOG(1), graph(n + 1),
+        depth(n + 1), tin(n + 1), tout(n + 1) {
+        while ((1LL << LOG) <= n) ++LOG;
+        up.assign(LOG, vector<int>(n + 1));
+    }
+
+    void add_edge(int u, int v) {
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    // 原树是连通无向树；固定根后预处理一次。
+    // 显式栈模拟 DFS，避免链形树的递归栈溢出。
+    void preprocess(int root = 1) {
+        vector<int> next_edge(n + 1), st{root};
+        int timer = 0;
+        depth[root] = 0;
+        up[0][root] = root;
+        while (!st.empty()) {
+            int u = st.back();
+            if (next_edge[u] == 0) {
+                tin[u] = ++timer;
+                for (int j = 1; j < LOG; ++j)
+                    up[j][u] = up[j - 1][up[j - 1][u]];
+            }
+            if (next_edge[u] == (int)graph[u].size()) {
+                // 子树的 DFS 序区间为 [tin[u], tout[u]]。
+                tout[u] = timer;
+                st.pop_back();
+                continue;
+            }
+            int v = graph[u][next_edge[u]++];
+            if (v == up[0][u]) continue;
+            up[0][v] = u;
+            depth[v] = depth[u] + 1;
+            st.push_back(v);
+        }
+    }
+
+    bool is_ancestor(int u, int v) const {
+        return tin[u] <= tin[v] && tin[v] <= tout[u];
+    }
+
+    int lca(int u, int v) const {
+        if (is_ancestor(u, v)) return u;
+        if (is_ancestor(v, u)) return v;
+        for (int j = LOG - 1; j >= 0; --j)
+            if (!is_ancestor(up[j][u], v)) u = up[j][u];
+        return up[0][u];
+    }
+
+    VirtualTree build(vector<int> keys) const {
+        VirtualTree result;
+        if (keys.empty()) return result;
+        auto by_dfs = [&](int a, int b) { return tin[a] < tin[b]; };
+        sort(keys.begin(), keys.end(), by_dfs);
+        keys.erase(unique(keys.begin(), keys.end()), keys.end());
+
+        result.nodes = keys;
+        int k = (int)keys.size();
+        // 只对去重后的原始关键点取相邻 LCA，不遍历正在扩大的 nodes。
+        for (int i = 1; i < k; ++i)
+            result.nodes.push_back(lca(keys[i - 1], keys[i]));
+        sort(result.nodes.begin(), result.nodes.end(), by_dfs);
+        result.nodes.erase(unique(result.nodes.begin(), result.nodes.end()),
+                           result.nodes.end());
+
+        int m = (int)result.nodes.size();
+        result.parent.assign(m, -1);
+        result.length.assign(m, 0);
+        result.is_key.assign(m, false);
+        vector<int> st; // 存虚树下标，保持一条祖先链
+        st.reserve(m);
+        int key_pos = 0;
+        for (int i = 0; i < m; ++i) {
+            int u = result.nodes[i];
+            // 两个数组都按 DFS 序排列，可以线性标记关键点。
+            if (key_pos < k && u == keys[key_pos]) {
+                result.is_key[i] = true;
+                ++key_pos;
+            }
+            while (!st.empty() && !is_ancestor(result.nodes[st.back()], u))
+                st.pop_back();
+            if (!st.empty()) {
+                int p = st.back();
+                result.parent[i] = p;
+                result.length[i] = depth[u] - depth[result.nodes[p]];
+            }
+            st.push_back(i);
+        }
+        return result;
+    }
+};
+
+// 每一对不同关键点只计算一次；重复编号按集合去重。
+long long pair_distance_sum(const VirtualTree& tree) {
+    int m = (int)tree.nodes.size();
+    vector<long long> count(m);
+    long long k = 0, answer = 0;
+    for (int i = 0; i < m; ++i) {
+        count[i] = tree.is_key[i];
+        k += count[i];
+    }
+    // 父亲先于孩子出现，倒序就是合法的自底向上处理顺序。
+    for (int i = m - 1; i >= 0; --i) {
+        int p = tree.parent[i];
+        if (p == -1) continue;
+        answer += 1LL * tree.length[i] * count[i] * (k - count[i]);
+        count[p] += count[i];
+    }
+    return answer;
+}
+
+// 输入：n q，n-1 条无权边；每个询问为 k 和 k 个关键点编号。
+// 输出：每个询问的关键点两两距离之和。
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n, q;
+    if (!(cin >> n >> q)) return 0;
+    VirtualTreeBuilder builder(n);
+    for (int i = 1; i < n; ++i) {
+        int u, v;
+        cin >> u >> v;
+        builder.add_edge(u, v);
+    }
+    builder.preprocess(1);
+    while (q--) {
+        int k;
+        cin >> k;
+        vector<int> keys(k);
+        for (int& u : keys) cin >> u;
+        VirtualTree tree = builder.build(move(keys));
+        cout << pair_distance_sum(tree) << '\n';
+    }
     return 0;
 }
 
@@ -2636,7 +3027,8 @@ unordered_map<long long, int, custom_hash> safe_map;
 ```cpp
 //mt19937 rng32(...);    // 生成 uint32_t
 //mt19937_64 rng64(...); // 生成 uint64_t
-mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
+mt19937_64 
+rng(chrono::steady_clock::now().time_since_epoch().count());
 hash[i] = rng();
 ```
 
@@ -2649,6 +3041,11 @@ For each positive integer xx, there is a prime pp inside the interval [x,2x].
 
 
 
+= #text("半开半闭区间二分")
+```text
+l为左端点,r为右端点+1
+结束时l == r, [L, r),返回l或r均可
+```
 = #text("开区间二分(l,r)")
 ```cpp
 它的核心思想可以总结为“红蓝染色法”（维护不变量）。
@@ -2671,6 +3068,8 @@ if (check(mid) == true) {
 
 = #text("数位dp")
 ```cpp
+
+
 // 递归版,看个大概,具体题目具体分析，下面这个是给定上限，求满足a,b,c a^b^c == 0 && a+c == 2*b的a,b,c个数
 vector<i64> pre(64);
 i64 memory[64][2][3][2];
@@ -3029,6 +3428,9 @@ Big operator*(const Big &b) const {
 ```
 = #text("杂项")
 
+== #text("min - max 恒等式(将min问题转化为max问题)")
+对于集合$T subset.eq{b_1,..., b_(n + m)}$
+$ min b_i = sum_(emptyset != T subset.eq {1, ..., n+m}) (-1)^(|T|-1) max_(i in T) b_i $
 == #text("对区间离线操作的差分处理")
 ```cpp
 using ll = long long;
@@ -3121,7 +3523,106 @@ __builtin_popcountll(x);
 __builtin_ctzll(x);
 __builtin_clzll(x);
 ```
+== #text("表达式求值")
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
 
+using ll = long long;
+
+bool isOp(const string& s) {
+    return s == "+" || s == "-" || s == "*" || s == "/";
+}
+
+ll evalRPN(const vector<string>& tokens) {
+    stack<ll> st;
+
+    for (const string& s : tokens) {
+        if (!isOp(s)) {
+            st.push(stoll(s));
+            continue;
+        }
+
+        ll b = st.top(); st.pop(); // 右操作数
+        ll a = st.top(); st.pop(); // 左操作数
+
+        if (s == "+") st.push(a + b);
+        else if (s == "-") st.push(a - b);
+        else if (s == "*") st.push(a * b);
+        else st.push(a / b);
+    }
+
+    return st.top();
+}
+
+// 示例：
+// cout << evalRPN({"3", "4", "+", "5", "*", "6", "2", "/", "-"});
+// 输出：32
+
+//支持非负整数、二元 + - * /、括号、空白；不支持 -3、2*(-3) 这类一元负号。
+int priority(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    return 0;
+}
+
+vector<string> toRPN(const string& s) {
+    vector<string> out;
+    stack<char> ops;
+    int n = (int)s.size();
+
+    for (int i = 0; i < n; ) {
+        char c = s[i];
+
+        if (isspace((unsigned char)c)) {
+            ++i;
+        } else if (isdigit((unsigned char)c)) {
+            // 连续数字要作为一个整体输出
+            int j = i;
+            while (i < n && isdigit((unsigned char)s[i])) {
+                ++i;
+            }
+            out.push_back(s.substr(j, i - j));
+        } else if (c == '(') {
+            ops.push(c);
+            ++i;
+        } else if (c == ')') {
+            while (ops.top() != '(') {
+                out.push_back(string(1, ops.top()));
+                ops.pop();
+            }
+            ops.pop(); // 丢弃左括号
+            ++i;
+        } else {
+            while (!ops.empty() && ops.top() != '(' &&
+                   priority(ops.top()) >= priority(c)) {
+                out.push_back(string(1, ops.top()));
+                ops.pop();
+            }
+            ops.push(c);
+            ++i;
+        }
+    }
+
+    while (!ops.empty()) {
+        out.push_back(string(1, ops.top()));
+        ops.pop();
+    }
+
+    return out;
+}
+
+//如何使用
+int main() {
+    string s;
+    getline(cin, s);
+
+    auto tokens = toRPN(s);
+
+    for (const auto& t : tokens) cout << t << ' ';
+    cout << '\n' << evalRPN(tokens) << '\n';
+}
+```
 == #text("优先队列自定义结构体比较")
 ```cpp
 struct cmp{
@@ -3150,7 +3651,65 @@ void print(__int128 x) {
 ```
 == #text("三分")
 ```cpp
+//浮点数
+#include <bits/stdc++.h>
+using namespace std;
 
+double f(double x) {
+    return (x - 3) * (x - 3) + 2; // 替换成题目函数
+}
+
+// 返回最小值对应的位置 x
+double ternary(double l, double r) {
+    for (int i = 0; i < 100; ++i) {
+        double m1 = l + (r - l) / 3;
+        double m2 = r - (r - l) / 3;
+
+        if (f(m1) < f(m2))
+            r = m2;
+        else
+            l = m1;
+    }
+    return l + (r - l) / 2;
+}
+
+int main() {
+    double x = ternary(-100, 100);
+    cout << fixed << setprecision(10);
+    cout << x << '\n';    // 最优位置：3
+    cout << f(x) << '\n'; // 最小值：2
+}
+
+//整数
+using ll = long long;
+
+ll f(ll x) {
+    return (x - 3) * (x - 3) + 2; // 注意溢出
+}
+
+// 返回最小值对应的一个整数位置 x
+ll ternary(ll l, ll r) {
+    while (r - l > 3) {
+        ll m1 = l + (r - l) / 3;
+        ll m2 = r - (r - l) / 3;
+
+        if (f(m1) < f(m2))
+            r = m2 - 1;
+        else
+            l = m1 + 1;
+    }
+
+    ll ans = l;
+    ll best = f(l);
+    for (ll x = l + 1; x <= r; ++x) {
+        ll val = f(x);
+        if (val < best) {
+            best = val;
+            ans = x;
+        }
+    }
+    return ans;
+}
 ```
 
 == #text("GF(2)高斯消元判矩阵满秩")
@@ -3245,7 +3804,155 @@ for(int i[1]=1;i[1]<=n;i[1]++)
 ```
 
 == #text("CDQ分治")
+```cpp
+/*
+在数组中找到一个最大的下标集合,使得x[i],y[i]均为不下降序列,求出最大大小即可
 
+通常用在以下情况
+dp[i] = 从 j<i 的状态中，按若干数值条件筛选后取最值/求和
+
+尤其是：
+
+状态有明确的时间或下标先后关系；
+转移可以离线处理；
+一个维度适合分治，其他维度能用 BIT、线段树或其他数据结构维护。
+*/
+#include <algorithm>
+#include <iostream>
+#include <numeric>
+#include <vector>
+
+using namespace std;
+
+class FenwickMax {
+    int size_;
+    vector<int> tree_;
+    vector<int> touched_;
+
+public:
+    explicit FenwickMax(int size) : size_(size), tree_(size + 1, 0) {
+        touched_.reserve(size);
+    }
+
+    void update(int position, int value) {
+        for (int p = position; p <= size_; p += p & -p) {
+            if (tree_[p] == 0) touched_.push_back(p);
+            tree_[p] = max(tree_[p], value);
+        }
+    }
+
+    int query(int position) const {
+        int result = 0;
+        for (int p = position; p > 0; p -= p & -p) {
+            result = max(result, tree_[p]);
+        }
+        return result;
+    }
+
+    void clear() {
+        for (int p : touched_) tree_[p] = 0;
+        touched_.clear();
+    }
+};
+
+class CDQSolver {
+    int n_;
+    vector<int> x_, y_, dp_, order_, temp_;
+    FenwickMax bit_;
+
+    bool byXThenId(int a, int b) const {
+        if (x_[a] != x_[b]) return x_[a] < x_[b];
+        return a < b;
+    }
+
+    // 进入和返回时，order_[l..r] 都按 (x, 下标) 排序。
+    void solve(int l, int r) {
+        if (l == r) return;
+        int mid = (l + r) / 2;
+
+        // 按原下标把已按 x 排序的序列稳定分成左右两组。
+        int left = l;
+        int right = mid + 1;
+        for (int k = l; k <= r; ++k) {
+            int id = order_[k];
+            if (id <= mid) temp_[left++] = id;
+            else temp_[right++] = id;
+        }
+        copy(temp_.begin() + l, temp_.begin() + r + 1, order_.begin() + l);
+
+        solve(l, mid);
+
+        // 左半 dp 已经最终确定；按 x 扫描，BIT 维护 y 前缀最大 dp。
+        int p = l;
+        for (int q = mid + 1; q <= r; ++q) {
+            int current = order_[q];
+            while (p <= mid && x_[order_[p]] <= x_[current]) {
+                int previous = order_[p++];
+                bit_.update(y_[previous], dp_[previous]);
+            }
+            int best = bit_.query(y_[current]);
+            if (best > 0) dp_[current] = max(dp_[current], best + 1);
+        }
+        bit_.clear();
+
+        solve(mid + 1, r);
+
+        // 归并两个已按 x 排序的子区间，恢复当前区间的排序。
+        int a = l, b = mid + 1, k = l;
+        while (a <= mid && b <= r) {
+            if (byXThenId(order_[a], order_[b])) temp_[k++] = order_[a++];
+            else temp_[k++] = order_[b++];
+        }
+        while (a <= mid) temp_[k++] = order_[a++];
+        while (b <= r) temp_[k++] = order_[b++];
+        copy(temp_.begin() + l, temp_.begin() + r + 1, order_.begin() + l);
+    }
+
+public:
+    CDQSolver(vector<int> x, vector<int> y)
+        : n_(static_cast<int>(x.size()) - 1), x_(move(x)), y_(move(y)),
+          dp_(n_ + 1, 1), order_(n_ + 1), temp_(n_ + 1), bit_(n_) {
+        iota(order_.begin(), order_.end(), 0);
+        sort(order_.begin() + 1, order_.end(),
+             [&](int a, int b) { return byXThenId(a, b); });
+        // y 已在 main 中压缩到 [1,n]，dp[0] 不参与转移。
+        dp_[0] = 0;
+    }
+
+    int answer() {
+        if (n_ == 0) return 0;
+        solve(1, n_);
+        return *max_element(dp_.begin() + 1, dp_.end());
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+
+    vector<int> x(n + 1), y(n + 1), allY;
+    allY.reserve(n);
+    for (int i = 1; i <= n; ++i) {
+        cin >> x[i] >> y[i];
+        allY.push_back(y[i]);
+    }
+
+    sort(allY.begin(), allY.end());
+    allY.erase(unique(allY.begin(), allY.end()), allY.end());
+    for (int i = 1; i <= n; ++i) {
+        y[i] = static_cast<int>(lower_bound(allY.begin(), allY.end(), y[i]) - allY.begin()) + 1;
+    }
+
+    // BIT 的大小需要覆盖压缩后的 y 值；n 更大时仍然足够。
+    CDQSolver solver(move(x), move(y));
+    cout << solver.answer() << '\n';
+    return 0;
+}
+
+```
 == #text("pb_ds") 
 ```cpp
 #include <bits/stdc++.h>
@@ -3453,6 +4160,7 @@ auto ceil_div = [](i64 x, i64 y) -> i64 {
         对 multiset 使用通用的 std::lower_bound,时间复杂度是(O(n))，不是 (O(log n))
         虽然比较次数只有 (O(log n))，但 multiset 的迭代器不能随机跳转，寻找中点需要逐步移动，总共会移动 (O(n)) 次。
         用multiset的成员函数即可,auto x = c_set.lower_bound(i); (O(log n))
+    20.std::sort 要求比较函数满足严格弱序 比如 a > b是合法的 a >= b就是未定义的
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
@@ -3476,6 +4184,8 @@ $ "ans" = sum max(0, b_i - b_(i-1)) $
     4.贪心题从收益函数的角度去分析
     5.树的问题可以联系子树大小去考虑,或者有时侯树链剖分/dsu on tree,图可能是染色,度数,连边可能边有选择方向的含义(有向边),或者是一些基础量,像桥之类的,数论+树结合的题目也有(数论(莫反)得出要维护的东西后dsu on tree的做过),图也可以去掉一些边变成树
     6.每个点度数大等于2,这个图不存在链
+    7.抓住题目不变量
+    8.从一到多比从多到一或许处理起来更简单
 ```
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，isap被特意卡的话常数比dinic大，")
 
