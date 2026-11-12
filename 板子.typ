@@ -928,7 +928,121 @@ https://oi-wiki.org/geometry/3d/
 
 == #text("仿射变换")
 
+
+== #text("一些小trick")
+
+=== #text("按照极角排序")
+```cpp
+struct Point {
+    ll x, y;
+};
+
+ll cross(const Point& a, const Point& b) {
+    return a.x * b.y - a.y * b.x;
+}
+
+// 将方向分成两半，极角顺序从正 x 轴开始，逆时针排列。
+int half(const Point& p) {
+    return (p.y > 0 || (p.y == 0 && p.x > 0)) ? 0 : 1;
+}
+
+bool angleLess(const Point& a, const Point& b) {
+    if (half(a) != half(b)) {
+        return half(a) < half(b);
+    }
+    return cross(a, b) > 0;
+}
+```
 = #text("数论")
+== #text("快速幂+矩阵快速幂+光速幂")
+```cpp
+long long qpow(long long a, long long b, long long mod) {
+  long long ans = 1 % mod;   // mod = 1 时答案恒为 0
+  a %= mod;
+  while (b > 0) {
+    if (b & 1) ans = (__int128)ans * a % mod;
+    a = (__int128)a * a % mod;
+    b >>= 1;
+  }
+  return ans;
+}
+```
+```cpp
+struct Mat {
+  long long a[2][2];
+};
+
+Mat mul(const Mat& x, const Mat& y, long long mod) {
+  Mat z{};
+  for (int i = 0; i < 2; ++i)
+    for (int k = 0; k < 2; ++k)
+      for (int j = 0; j < 2; ++j)
+        z.a[i][j] = (z.a[i][j] + (__int128)x.a[i][k] * y.a[k][j]) % mod;
+  return z;
+}
+
+Mat mpow(Mat a, long long n, long long mod) {
+  Mat r{{{1, 0}, {0, 1}}};
+  while (n) {
+    if (n & 1) r = mul(r, a, mod);
+    a = mul(a, a, mod);
+    n >>= 1;
+  }
+  return r;
+}
+```
+```cpp
+    /*分块 + 快速幂，多次询问，相同底数和,处理O(n)，询问O(1),n为最大幂次*/
+struct FastPow {
+  long long mod, s;
+  vector<long long> lo, hi;
+
+  FastPow(long long a, long long n, long long m) : mod(m) {
+    s = max(1LL, (long long)sqrt((long double)n) + 1);
+    lo.assign(s, 1);
+    for (long long i = 1; i < s; ++i)
+      lo[i] = (__int128)lo[i - 1] * a % mod;
+
+    long long pw = 1;                 // a^s
+    for (long long i = 0; i < s; ++i) pw = (__int128)pw * a % mod;
+
+    hi.assign(n / s + 1, 1);
+    for (size_t i = 1; i < hi.size(); ++i)
+      hi[i] = (__int128)hi[i - 1] * pw % mod;
+  }
+
+  long long query(long long b) const {
+    return (__int128)hi[b / s] * lo[b % s] % mod;
+  }
+};
+```
+== #text("快速乘")
+```cpp
+// 1. __int128
+long long mulMod(long long a, long long b, long long m) {
+  return (long long)((__int128)a * b % m);
+
+// 2. 二进制加法（没有 __int128 时）
+long long mulMod(long long a, long long b, long long m) {
+  long long r = 0;
+  a %= m;
+  while (b) {
+    if (b & 1) r = (r + a) % m;
+    a = (a + a) % m;   // 注意：m 接近 2^63 时这里也会溢出
+    //一种优化:a = (a >= m - a) ? a - (m - a) : a + a; 
+    // 避免 a+a 溢出
+    b >>= 1;
+  }
+  return r;
+}
+
+long long mulMod(long long a, long long b, long long m) {
+  long long c = (unsigned long long)a * b -
+                (unsigned long long)((long double)a / m * b + 0.5L) * m;
+  return c < 0 ? c + m : c;
+}
+```
+
 == #text("欧拉筛")
 
 ```cpp
@@ -1354,6 +1468,11 @@ int64 C(int n, int k) {
     return fac[n] * ifac[k] % MOD * ifac[n - k] % MOD;
 }
 ```
+== #text("一些数论知识的补充")
+```cpp
+ac == bc (mod m) 等价于 a == b (mod m/gcd(c, m) )
+素数个数近似于 x/ln(x)
+```
 = #text("图论")
 == #text("dsu on tree")
 ```cpp
@@ -1413,6 +1532,53 @@ void dfs(int u) {
 }
 
 // 得到路径：reverse(path.begin(), path.end());
+```
+== #text("强连通分量-tarjan")
+
+```cpp
+/*
+    关于tarjan算法的一些个人理解(待补充)
+*/
+const int N = 1e5 + 5;
+vector<int>g[N];
+int dfn[N], low[N], timer;
+bool inStk[N];
+vector<int> stk;                     // 模拟栈
+vector<vector<int>> scc;            // 收集所有强连通分量
+
+void tarjan(int u) {
+    dfn[u] = low[u] = ++timer;
+    stk.push_back(u);
+    inStk[u] = true;
+    for (int v : g[u]) {
+        if (!dfn[v]) {
+            tarjan(v);
+            low[u] = min(low[u], low[v]);
+        } else if (inStk[v]) {
+            low[u] = min(low[u], dfn[v]);
+        }
+    }
+    if (dfn[u] == low[u]) {          // u 是 SCC 的根
+        vector<int>comp;
+        while (true) {
+            int v = stk.back();
+            stk.pop_back();
+            inStk[v] = false;
+            comp.push_back(v);
+            if (v == u) break;
+        }
+        scc.push_back(comp); }}        // 收集当前分量
+int main() {
+    read(n,m,g);//g为edge
+    for (int i = 1; i<= n; ++i)
+        if (!dfn[i]) tarjan(i);
+    // 输出所有强连通分量
+    for (int i = 0; i<(int)scc.size(); ++i) {
+        cout << "SCC " << i + 1 << ": ";
+        for (int x : scc[i]) cout << x << " ";
+        cout << "\n";
+    }
+    return 0;}
 ```
 == #text("hall定理")
 - #text("设二分图 G = (L, R, E)，L 为左部，R 为右部。")
@@ -2859,53 +3025,6 @@ int main() {
     return 0;
 }
 ```
-= #text("强连通分量-tarjan")
-
-```cpp
-/*
-    关于tarjan算法的一些个人理解(待补充)
-*/
-const int N = 1e5 + 5;
-vector<int>g[N];
-int dfn[N], low[N], timer;
-bool inStk[N];
-vector<int> stk;                     // 模拟栈
-vector<vector<int>> scc;            // 收集所有强连通分量
-
-void tarjan(int u) {
-    dfn[u] = low[u] = ++timer;
-    stk.push_back(u);
-    inStk[u] = true;
-    for (int v : g[u]) {
-        if (!dfn[v]) {
-            tarjan(v);
-            low[u] = min(low[u], low[v]);
-        } else if (inStk[v]) {
-            low[u] = min(low[u], dfn[v]);
-        }
-    }
-    if (dfn[u] == low[u]) {          // u 是 SCC 的根
-        vector<int>comp;
-        while (true) {
-            int v = stk.back();
-            stk.pop_back();
-            inStk[v] = false;
-            comp.push_back(v);
-            if (v == u) break;
-        }
-        scc.push_back(comp); }}        // 收集当前分量
-int main() {
-    read(n,m,g);//g为edge
-    for (int i = 1; i<= n; ++i)
-        if (!dfn[i]) tarjan(i);
-    // 输出所有强连通分量
-    for (int i = 0; i<(int)scc.size(); ++i) {
-        cout << "SCC " << i + 1 << ": ";
-        for (int x : scc[i]) cout << x << " ";
-        cout << "\n";
-    }
-    return 0;}
-```
 
 = #text("polya定理")
 $|C/G| = frac(1,|G|) sum_(g in G) m^c(g)$
@@ -3788,6 +3907,7 @@ ll ternary(ll l, ll r) {
 
 ```cpp
 /*
+    trick 部分也记录了一种sos dp的写法
     做n次一维前缀和
 */
 for(int i[1]=1;i[1]<=n;i[1]++)
@@ -4133,7 +4253,7 @@ auto ceil_div = [](i64 x, i64 y) -> i64 {
     1.upper_bound和lower_bound比map更快    
     2.move函数和merge函数的用法
     3.#define File(name) freopen(#name".in", "r", stdin); freopen(#name".out", "w", stdout);
-    4.x &= x - 1 每次删去最低位置上的1, Sub = (sub – 1) & mask // 遍历该集合的所有子集
+    4.x &= x - 1 每次删去最低位置上的1
     5. >> 优先级比 & 高
     6.一些并行运算确实要更快
     7.Prüfer序列(造树)
@@ -4161,6 +4281,7 @@ auto ceil_div = [](i64 x, i64 y) -> i64 {
         虽然比较次数只有 (O(log n))，但 multiset 的迭代器不能随机跳转，寻找中点需要逐步移动，总共会移动 (O(n)) 次。
         用multiset的成员函数即可,auto x = c_set.lower_bound(i); (O(log n))
     20.std::sort 要求比较函数满足严格弱序 比如 a > b是合法的 a >= b就是未定义的
+    21.高精度乘法可以用fft/ntt运算+处理进位
 ```
 经典结论：通过区间 $+1$ 操作将全零序列变为序列 $c_i$，需要的花费为 $sum max(0, c_i - c_(i-1))$。
 
@@ -4187,6 +4308,108 @@ $ "ans" = sum max(0, b_i - b_(i-1)) $
     7.抓住题目不变量
     8.从一到多比从多到一或许处理起来更简单
 ```
+
+= #text("trick")
+
+== #text("正负数通用取模")
+```cpp
+//进阶：减少取模开销¶
+//当常数要求很严时，可以用 Barrett 约减或 Montgomery 模乘，把除法/取模换成乘法、移位和减法。竞赛中绝大多数题目用不到，知道名字即可；需要时再查
+```
+```cpp
+    x %= mod;
+    if (x < 0) x += mod;
+    return x;
+}
+```
+```cpp
+//也可以用封装的(,可以避免到处写 %,也不容易漏掉负数归一化
+template <int MOD>
+struct ModInt {
+  int v;
+
+  ModInt(long long x = 0) {
+    x %= MOD;
+    if (x < 0) x += MOD;
+    v = int(x);
+  }
+
+  ModInt& operator+=(const ModInt& o) {
+    v = int((v + (long long)o.v) % MOD);
+    return *this;
+  }
+
+  ModInt& operator-=(const ModInt& o) {
+    v = int((v - (long long)o.v % MOD + MOD) % MOD);
+    return *this;
+  }
+
+  ModInt& operator*=(const ModInt& o) {
+    v = int(1LL * v * o.v % MOD);
+    return *this;
+  }
+
+  ModInt pow(long long b) const {
+    ModInt res(1), a = *this;
+    while (b) {
+      if (b & 1) res *= a;
+      a *= a;
+      b >>= 1;
+    }
+    return res;
+  }
+
+  friend ModInt operator+(ModInt a, const ModInt& b) { return a += b; }
+  friend ModInt operator-(ModInt a, const ModInt& b) { return a -= b; }
+  friend ModInt operator*(ModInt a, const ModInt& b) { return a *= b; }
+};
+```
+== #text("二进制分组") 
+```cpp
+
+```
+== #text("二进制相关操作")
+=== #text("枚举所有掩码的所有子集O(3^n),n <= 15")
+```cpp
+for (int m = 0; m < (1 << n); ++m)
+  for (int s = m; s; s = (s - 1) & m) {
+    // s 是 m 的非空子集
+  }
+```
+=== #text("删除最低位的1")
+```cpp
+    x &= x - 1
+```
+
+=== #text("枚举超集")
+```cpp
+for (int s = m; s < (1 << n); s = (s + 1) | m) {
+  // s 是 m 的超集
+}
+```
+
+=== #text("状压的一种写法")
+```cpp
+for (int mask = 0; mask < (1 << n); ++mask)
+  for (int i = 0; i < n; ++i)
+    if (!(mask >> i & 1))
+      dp[mask | (1 << i)] = min(dp[mask | (1 << i)], dp[mask] + cost[i]);
+```
+
+=== #text("sos dp O(n * 2^n)快于O(3^n)")
+```cpp
+for (int i = 0; i < n; ++i)
+  for (int mask = 0; mask < (1 << n); ++mask)
+    if (mask >> i & 1)
+      f[mask] += f[mask ^ (1 << i)];
+```
+
+== #text("各种题型的一些常见方法")
+```text
+数论题:分解因子+积性函数
+```
+
+=== #text("状态图 BFS")
 #text("待施工： fwt，博弈论，根号分治，调和级数，点分治，polya定理带权重的版本，猫树，无旋treap，splay树，区间gcd最多下降log次，斐波那契数列的性质应用（每项大等于前一项，每一项小等于前一项的两倍，每一项等于前两项的和），重心点分治每次规模除二，st表二分，对顶堆，isap被特意卡的话常数比dinic大，")
 
 #text("// 1. (x&b)>(b>>1) 判断x在b的最高位是否为1")
